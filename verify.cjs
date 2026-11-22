@@ -1,12 +1,78 @@
-const assert=require('node:assert/strict');
-(async()=>{
-const api=async(body)=>{const r=await fetch('http://localhost:8787/api',{method:'POST',body:JSON.stringify(body)});const d=await r.json();assert(!d.error,d.error);return d};
-const host=await api({op:'create',name:'A'}),seats=[host];
-for(const name of ['B','C','D'])seats.push(await api({op:'join',code:host.code,name}));
-const send=(s,op,x)=>api({code:s.code,token:s.token,op,...x});
-await send(host,'start');let steps=0,rounds=new Set(),deadline=Date.now()+120000;
-while(Date.now()<deadline){const states=await Promise.all(seats.map(s=>send(s,'state')));if(states[0].final){console.log({steps,rounds:[...rounds],final:states[0].final});return}
-for(const s of states){if(s.table){rounds.add(s.table.round);assert(!s.table.players.some(p=>p.hand));assert.equal(s.table.players[s.table.l].name,s.names[s.id])}
-if(s.nonce){const best=s.options.findIndex(x=>['荣和','自摸'].includes(x)||x.startsWith('立直'));await send(s,'act',{nonce:s.nonce,i:best<0?s.options.length-1:best});steps++}}
-await new Promise(r=>setTimeout(r,5))}
-throw Error('timeout')})().catch(e=>{console.error(e);process.exitCode=1})
+const assert = require('node:assert/strict');
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const origin = process.argv[2] || 'http://localhost:8787';
+
+async function request(body, cookie) {
+ const headers = cookie ? {cookie} : {};
+ const response = await fetch(origin+'/api', {method:'POST',headers,body:JSON.stringify(body)});
+ return {data:await response.json(),status:response.status,cookie:response.headers.get('set-cookie')?.split(';')[0]};
+}
+async function api(body,cookie) {
+ const response=await request(body,cookie);
+ assert.equal(response.status,200,response.data.error);
+ return response.data;
+}
+
+async function verify() {
+ assert.equal((await request({op:'create'})).status,401);
+ const suffix=Date.now().toString(36);
+ const seats=[];
+ let code;
+ for(const [index,nickname] of ['东测试','南测试','西测试','北测试'].entries()){
+  const registration=await request({op:'register',username:'qa_'+suffix+'_'+index,password:'test-account-'+suffix,nickname});
+  assert.equal(registration.status,200,registration.data.error);
+  const {cookie}=registration;
+  assert(cookie);
+  const seat=await api({op:code?'join':'create',code},cookie);
+  code=seat.code;
+  seats.push({...seat,cookie});
+ }
+ const send=(seat,op,extra={})=>api({code,token:seat.token,op,...extra},seat.cookie);
+ await send(seats[0],'start');
+ assert.equal((await api({op:'me'},seats[0].cookie)).profile.recentCount,0);
+ assert.deepEqual((await api({op:'history'},seats[0].cookie)).matches,[]);
+ assert.equal((await request({op:'state',code,token:seats[0].token},seats[1].cookie)).status,400);
+ assert.equal((await request({op:'replay',code,token:seats[0].token},seats[0].cookie)).status,400);
+ const deadline=Date.now()+120000;
+ let steps=0;
+ while(Date.now()<deadline){
+  const states=await Promise.all(seats.map(s=>send(s,'state')));
+  if(states[0].final){
+   for(const [i,seat] of seats.entries()){
+    const result=states[0].final[i];
+    const profile=(await api({op:'me'},seat.cookie)).profile;
+    assert.equal(profile.recentCount,1);
+    assert.equal(profile.recentPoints,result);
+    const snapshot=await send(seat,'state');
+    assert.deepEqual(snapshot.rankResult.profile,profile);
+   }
+   const replay=await send(seats[0],'replay');
+   assert(replay.rounds.every(round=>round.wall.length===136));
+   const nextDevice=await request({op:'login',username:'qa_'+suffix+'_0',password:'test-account-'+suffix});
+   assert.equal(nextDevice.status,200);
+   assert.notEqual(nextDevice.cookie,seats[0].cookie);
+   const saved=(await api({op:'history'},nextDevice.cookie)).matches;
+   assert.equal(saved.length,1);
+   assert.equal(saved[0].id,replay.id);
+   assert.equal(saved[0].roundCount,replay.rounds.length);
+   assert.equal(saved[0].rounds,undefined);
+   const playback=await api({op:'savedReplay',matchId:replay.id},nextDevice.cookie);
+   assert.deepEqual(playback,replay);
+   const stranger=await request({op:'register',username:'qa_'+suffix+'_x',password:'test-account-'+suffix,nickname:'游客测试'});
+   assert.equal((await request({op:'savedReplay',matchId:replay.id},stranger.cookie)).status,404);
+   console.log('完整半庄、账号隔离、段位仅结算一次及 136 张回放通过', {steps,rounds:replay.rounds.length});
+   return;
+  }
+  for(const [i,state] of states.entries()){
+   if(state.table)assert(!state.table.players.some(p=>p.hand));
+   if(!state.nonce)continue;
+   const preference=state.options.findIndex(x=>['荣和','自摸','公开听牌'].includes(x));
+   const discard=state.options.findIndex(x=>x.startsWith('打 '));
+   await send(seats[i],'act',{nonce:state.nonce,i:preference>=0?preference:discard>=0?discard:state.options.length-1});
+   steps++;
+  }
+  await delay(5);
+ }
+ throw Error('对局测试超时');
+}
+verify().catch(error=>{console.error(error); process.exitCode=1});

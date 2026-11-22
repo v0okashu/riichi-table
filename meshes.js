@@ -15,6 +15,10 @@
  const size = header.getUint32(12, true);
  const doc = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 20, size)));
  const base = 28 + size;
+ // All variants share the same solid envelope. Read its dimensions from the model.
+ const bounds = doc.accessors[doc.meshes[0].primitives[0].attributes.POSITION];
+ const dimensions = bounds.max.map((max, axis) => max - bounds.min[axis]);
+ const [widthMm, heightMm, depthMm] = dimensions.map(metres => metres * 1000);
  const buffers = doc.bufferViews.map(view => {
   const buffer = gl.createBuffer();
   gl.bindBuffer(view.target, buffer);
@@ -28,10 +32,11 @@
   attribute vec3 position, normal;
   attribute vec4 color;
   uniform vec4 origin, axisX, axisY, axisZ;
+  uniform vec3 dimensions;
   uniform vec3 light;
   varying vec3 shaded;
   void main() {
-   vec3 tile = position / vec3(.0205, -.028, .0165) + .5;
+   vec3 tile = position / dimensions + .5;
    gl_Position = origin + axisX * tile.x + axisY * tile.y + axisZ * tile.z;
    vec3 linear = color.rgb * (.73 + .27 * max(dot(normalize(normal), light), 0.));
    shaded = pow(linear, vec3(1. / 2.2));
@@ -49,6 +54,7 @@
  gl.linkProgram(program);
  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
  gl.useProgram(program);
+ gl.uniform3fv(gl.getUniformLocation(program,'dimensions'), [dimensions[0], -dimensions[1], dimensions[2]]);
  const [origin, axisX, axisY, axisZ, light] = ['origin','axisX','axisY','axisZ','light'].map(name => gl.getUniformLocation(program,name));
  const attributes = ['position','normal','color'].map(name => gl.getAttribLocation(program,name));
  attributes.forEach(index => gl.enableVertexAttribArray(index));
@@ -145,13 +151,13 @@
  function drawInterfaceTile(item, width, height) {
   // The independent preview and form controls have their own CSS cameras.
   const p = item.points;
-  const x = subtract(p[1],p[0]).map(v => v/20.5);
-  const y = subtract(p[0],p[2]).map(v => v/28);
-  const z = subtract(p[4],p[0]).map(v => v/16.5);
+  const x = subtract(p[1],p[0]).map(v => v/widthMm);
+  const y = subtract(p[0],p[2]).map(v => v/heightMm);
+  const z = subtract(p[4],p[0]).map(v => v/depthMm);
   const area = (a,b) => a[1]*b[0] - a[0]*b[1];
   const normal = unit([area(y,z),area(z,x),area(x,y)]);
   const direction = unit([normal[0]-.3, normal[1]+.4, normal[2]+.1]);
-  const depth = p.map((_,i) => -.022 * dot([i&1 ? 20.5 : 0, i&2 ? -28 : 0, i&4 ? 16.5 : 0], normal));
+  const depth = p.map((_,i) => -.022 * dot([i&1 ? widthMm : 0, i&2 ? -heightMm : 0, i&4 ? depthMm : 0], normal));
   gl.clear(gl.DEPTH_BUFFER_BIT);
   drawTile(item, p.map(() => 1), depth, direction, width, height);
  }
@@ -190,8 +196,8 @@
  }
  document.documentElement.classList.add('meshes-ready');
  new MutationObserver(schedule).observe(document.body, {childList:true,subtree:true});
+ document.addEventListener('toggle',schedule,true);
  for (const event of ['resize','scroll','pointerover','pointerout']) window.addEventListener(event,schedule,true);
  canvas.addEventListener('webglcontextlost', () => document.documentElement.classList.remove('meshes-ready'));
  schedule();
 })().catch(console.error);
-

@@ -1,20 +1,22 @@
-# 雀庭
+# 汪汪队 · 立直对局室
 
-四人立直麻将试玩版，含 3D 牌桌、好友房和电脑补位。
+四人立直麻将试玩版，支持 3D 牌桌、好友房、电脑补位、段位和完整半庄回放。
 
 ## 下载试玩
 
-在仓库的 **Releases** 页面下载 Windows x64 试玩包。完整解压后双击 **Start.cmd**。在浏览器里输入昵称、创建房间，再点击「开始半庄」。空位由电脑补齐。关闭启动窗口即可退出。
+从 [Releases](https://github.com/v0okashu/riichi-table/releases/latest) 下载 Windows x64 试玩包，完整解压并双击 **Start.cmd**。在浏览器注册账号、设置昵称，再创建房间并点击「开始半庄」。空位由电脑补齐。
 
-试玩包包含 Node.js 运行环境，支持 Windows 10 / 11 x64。下载版在本机运行。
+试玩包内置 Node.js，支持 Windows 10 / 11 x64。账号、段位和完整牌谱保存在运行牌桌的电脑上。关闭启动窗口即可退出。
 
 ## 从源码运行
 
-使用 Node.js 22，运行以下命令后打开 http://localhost:8787/ 。
+安装 Node.js 22.18 或更高版本，运行以下命令后打开 http://localhost:8787/ 。
 
 ```sh
 npm ci
 node server.js
 ```
+
+账号、段位和牌谱默认写入 `data/`。可用环境变量 `RIICHI_DATA_DIR` 指定存储目录。不同设备连接同一台服务器，并用同一账号登录，就能查看记录。
 
 麻将规则引擎与电脑对手使用 Satoshi Kobayashi 的 [majiang-core](https://github.com/kobalab/majiang-core) 与 [majiang-ai](https://github.com/kobalab/majiang-ai)。

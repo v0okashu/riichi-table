@@ -71,6 +71,8 @@ module.exports = class Shan {
 
     close() { this._closed = true; return this }
 
+    snapshot() { return this._pai.slice(); }
+
     get paishu() { return this._pai.length - 14 }
 
     get baopai() { return this._baopai.filter(x=>x) }

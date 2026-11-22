@@ -26,10 +26,12 @@ class LeagueGame extends M.Game {
   if(this.effects.length>24)this.effects.shift();
  }
  penalties=[0,0,0,0];
- qipai(){
+ walls=[];
+ qipai(shan=new M.Shan(this._rule)){
+  this.walls.push(shan.snapshot());
   this.effects=[];
   this.roundStart={points:[...this.model.defen],sticks:this.model.lizhibang};
-  super.qipai();
+  super.qipai(shan);
  }
  reply_zimo(){
   const seat=this.model.lunban,reply=this.get_reply(seat);

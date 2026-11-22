@@ -19,7 +19,7 @@ function accessor(array,type,count,target,min,max){
 }
 function makeTile(id,col,row){
  const pos=[],rgb=[],idx=[],norm=[];
- function vertex(x,y,z,c){pos.push(x*.001,-y*.001,z*.001);rgb.push(...c.map(toLinear),255);return rgb.length/4-1}
+ function vertex(x,y,z,c){pos.push(x*.001,-y*.001,z*.0008);rgb.push(...c.map(toLinear),255);return rgb.length/4-1}
  function face(a,b,c){idx.push(a,c,b)}
  const width=20.5,height=28,d=16.5,ivory=[252,250,238],amber=[225,167,59],seam=[170,119,32];
  function xy(u,v,inset){
@@ -59,7 +59,7 @@ function makeTile(id,col,row){
  for(const k of [a,b,c]){norm[k]+=uy*vz-uz*vy;norm[k+1]+=uz*vx-ux*vz;norm[k+2]+=ux*vy-uy*vx}}
  for(let k=0;k<norm.length;k+=3){const n=Math.hypot(...norm.slice(k,k+3))||1;for(let j=0;j<3;j++)norm[k+j]/=n}
  const n=pos.length/3;
- const attributes={POSITION:accessor(new Float32Array(pos),'VEC3',n,34962,[-.01025,-.014,-.00825],[.01025,.014,.00825]),NORMAL:accessor(new Float32Array(norm),'VEC3',n,34962),COLOR_0:accessor(new Uint8Array(rgb),'VEC4',n,34962)};
+ const attributes={POSITION:accessor(new Float32Array(pos),'VEC3',n,34962,[-.01025,-.014,-.0066],[.01025,.014,.0066]),NORMAL:accessor(new Float32Array(norm),'VEC3',n,34962),COLOR_0:accessor(new Uint8Array(rgb),'VEC4',n,34962)};
  // glTF vertex attributes require four-byte alignment between successive vertices.
  const color=accessors[attributes.COLOR_0],view=views[color.bufferView];
  meshes.push({name:id,primitives:[{attributes,indices:accessor(new Uint16Array(idx),'SCALAR',idx.length,34963),material:0}]});

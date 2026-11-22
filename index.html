@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>雀庭 · 立直对局室</title>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>汪汪队 · 立直对局室</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#102826;color:#f5f0dc;font:16px "Microsoft YaHei",sans-serif}header,main,footer{max-width:1180px;margin:auto;padding:20px 5vw}header{display:flex;align-items:center;gap:14px;border-bottom:1px solid #45605a}header b{font: bold 26px serif}header small{margin-left:auto;color:#bdd1c7}.seal{background:#b94432;padding:6px 9px;border-radius:4px;font:bold 23px serif}main{min-height:78vh;display:grid;align-content:center;gap:20px}#lobby{display:grid;grid-template-columns:1.25fr 1fr;align-items:center;gap:7vw}.art{display:flex;gap:8px;transform:rotate(-8deg);margin:55px 0 50px 12px}.art i{background:linear-gradient(120deg,#fffbee,#dfd8bd);color:#1c5144;font: bold clamp(55px,7vw,105px) serif;border-radius:10px;padding:6px 10px;border-bottom:9px solid #c4a96c;box-shadow:4px 9px 0 #091f1c}.art i:first-child{color:#af422f}.art i:last-child{transform:rotate(10deg) translateY(-8px)}h1{font: bold clamp(40px,6vw,76px) serif;margin:14px 0}h2{font: bold 30px serif;margin:0 0 24px}.gold,footer{color:#c6b884}p{line-height:1.7;color:#cfdbcf}.panel{padding:30px;background:#203d37;border:1px solid #486057;border-radius:14px}label{display:block;margin:16px 0 7px}input,button{font:inherit;border-radius:6px;padding:11px 15px}input{background:#112e29;color:white;border:1px solid #657b6f;width:100%}button{background:#eedba5;color:#18342b;border:0;font-weight:600;cursor:pointer}button:hover{filter:brightness(1.1)}button:disabled{cursor:default}.wide{width:100%;margin-top:14px}.join{display:flex;gap:8px}.join button{white-space:nowrap}.secondary{background:#34534a;color:#f3eedf}#desk{background:radial-gradient(ellipse at center,#266654,#174739 75%);border:5px solid #435048;border-radius:20px;padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;align-items:center;min-height:430px}.seat{background:#173e34b0;border-radius:7px;padding:9px;min-width:0}.seat b{font-size:15px}.seat strong{float:right;color:#efdba5}.river{display:grid;grid-template-columns:repeat(6,minmax(0,25px));margin-top:7px;gap:2px}.tile{display:inline-grid;place-items:center;background:#fff9e4;border:1px solid #c7c1a5;border-bottom:3px solid #c1ad7a;border-radius:4px;color:#224c46;font:28px "Segoe UI Symbol",serif}.red{color:#b93c31}.river .tile{font-size:19px}.center{text-align:center}.hand{display:flex;flex-wrap:wrap;gap:3px;margin:16px 0}.hand .tile{font-size:clamp(23px,4vw,48px);padding:3px}.hand button:enabled:hover{transform:translateY(-5px)}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{padding:8px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}#error{color:#ffdb9d}footer{border-top:1px solid #375049;font-size:13px}a{color:inherit}[hidden]{display:none!important}@media(max-width:700px){#lobby{grid-template-columns:1fr;gap:12px}.art{margin:20px 0}.art i{font-size:42px}main{padding:18px 3vw}.panel{padding:18px}#desk{padding:5px;gap:3px;min-height:315px;grid-template-columns:1fr 1fr 1fr}.seat{padding:4px}.seat strong{float:none;display:block}.river .tile{font-size:14px}.seat b{font-size:13px}.center{font-size:13px}}
 .model{display:inline-block;width:38px;height:auto;vertical-align:middle}.art .model{width:clamp(70px,9vw,118px);filter:drop-shadow(4px 7px 3px #071c17)}.art .model:last-child{transform:rotate(13deg)}
@@ -8,9 +8,18 @@
 .seat{--angle:0deg}.seat[data-seat="1"]{--angle:-90deg}.seat[data-seat="2"]{--angle:180deg}.seat[data-seat="3"]{--angle:90deg}.front{height:55px;display:grid;place-items:center}.front img{transform:rotate(var(--angle));width:100%;max-width:42px}.seat:is([data-seat="1"],[data-seat="3"]) .river{grid-template-columns:repeat(auto-fit,minmax(0,54px));grid-auto-columns:minmax(0,54px)}.seat:is([data-seat="1"],[data-seat="3"]) .front{height:42px}.seat:is([data-seat="1"],[data-seat="3"]) .front img{width:76%}.seat small img{transform:rotate(var(--angle));margin:3px}
 .stick{display:inline-block;width:48px;height:8px;border-radius:3px;background:radial-gradient(circle,#bc322b 2px,transparent 2.6px) center/100% 100%,linear-gradient(#fffdf2,#ddd5ba);box-shadow:0 2px 3px #102c25;vertical-align:middle}.flight{position:fixed;pointer-events:none;z-index:20}#pot{display:inline-block}.top{flex-wrap:wrap}.top h2{margin-right:auto}
 .backs,.melds,.meld,.winhand{display:flex;align-items:center;flex-wrap:wrap}.backs{clear:both;flex-wrap:nowrap;margin:7px 0;gap:0}.backs .model{width:min(6.7%,19px)}.seat[data-seat="2"] .backs .model{transform:rotate(180deg)}.seat:is([data-seat="1"],[data-seat="3"]) .backs .model{transform:rotate(var(--angle)) scale(.82)}.melds{gap:7px}.meld .model{width:24px}.meld .called{transform:rotate(-90deg);margin:0 4px}.actions:has(.claim){position:sticky;bottom:8px;z-index:3;background:#102e28;padding:10px;border:1px solid #e0bf75;border-radius:9px;box-shadow:0 4px 20px #0008}.actions .claim{background:#aa3628;color:#fffbea;font-size:21px;padding:12px 19px;min-height:52px;border:2px solid #f3c879}.announcement{pointer-events:none;position:fixed;z-index:25;top:36%;left:50%;transform:translateX(-50%);text-align:center;color:#ffefc6;background:#28362bf5;border-block:3px solid #e5bd72;padding:10px 50px;animation:announce 1.35s both}.announcement small,.announcement b{display:block}.announcement b{font:bold 54px serif}@keyframes announce{0%{opacity:0;translate:0 18px}18%,82%{opacity:1;translate:0 0}100%{opacity:0;translate:0 -8px}}.settlement{padding:clamp(16px,4vw,44px);background:#1c4035;border:1px solid #9e9367;border-radius:14px}.settlement h1{font-size:clamp(32px,5vw,55px)}.winhand{margin:22px 0;gap:2px}.winhand .model{width:clamp(25px,4.1vw,52px)}.winning,.winhand .meld{margin-left:8px}.settlement h2{color:#f5d591;margin-bottom:12px}.settlement h2 small{font-size:18px}.yaku{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}.yaku span{padding:5px 8px;background:#305345}.payout{display:flex;justify-content:space-between;border-top:1px solid #526a59;padding:8px 0}.settlement button{margin-top:14px}@media(prefers-reduced-motion:reduce){.announcement{animation:none}}
-</style><link rel="stylesheet" href="/table.css"><header><span class="seal">雀</span><b>雀庭</b><span>立直对局室</span><small>M.LEAGUE 规则</small></header><main>
-<section id="lobby"><div><div class="art" aria-hidden="true"></div><h1>好友牌桌</h1><p>四人立直麻将 · 东南半庄 · 赤牌三枚</p></div><div class="panel"><h2>入座</h2><label for="nick">雀士昵称</label><input id="nick" maxlength="12" placeholder="输入你的昵称"><button class="wide" id="create">创建房间</button><label for="code">已有房间号</label><div class="join"><input id="code" inputmode="numeric" maxlength="6" placeholder="六位房间号"><button class="secondary" id="join">加入</button></div></div></section>
-<section id="room" hidden><div class="top"><h2 id="title"></h2><button class="secondary" id="sound"></button><button class="secondary" id="copy">复制邀请</button></div><div id="play"></div></section><div id="error" role="status"></div></main><footer>雀庭　 /　 四人对战 Demo　　 <a href="https://m-league.jp/about/" target="_blank" rel="noreferrer">M.LEAGUE 官方规则</a></footer>
+</style><link rel="stylesheet" href="/table.css"><header><span class="seal">汪</span><b>汪汪队</b><span>立直对局室</span><small>M.LEAGUE 规则</small></header><main>
+<section id="account-gate" class="panel" hidden>
+ <div class="account-tabs"><button id="login-tab" type="button" aria-pressed="true">登录</button><button id="register-tab" type="button" aria-pressed="false">注册</button></div>
+ <form id="account-form">
+  <label for="account-username">账号</label><input id="account-username" name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="3～24 位字母、数字或下划线">
+  <label for="account-password">密码</label><input id="account-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128">
+  <div id="register-nickname" hidden><label for="account-nickname">雀士昵称</label><input id="account-nickname" name="nickname" maxlength="24" placeholder="最多 12 个字符"></div>
+  <button id="account-submit" class="wide">登录</button>
+ </form>
+</section>
+<section id="lobby" hidden><div><div class="art" aria-hidden="true"></div><h1>好友牌桌</h1><p>四人立直麻将 · 东南半庄 · 赤牌三枚</p></div><div class="panel"><h2>入座</h2><div id="account-profile"></div><button class="wide" id="create">创建房间</button><button type="button" class="secondary wide" data-open-replays>牌谱</button><label for="code">已有房间号</label><div class="join"><input id="code" inputmode="numeric" maxlength="6" placeholder="六位房间号"><button class="secondary" id="join">加入</button></div></div></section>
+<section id="room" hidden><div class="top"><h2 id="title"></h2><button class="secondary" id="sound"></button><button class="secondary" id="copy">复制邀请</button></div><div id="play"></div></section><section id="replay" hidden></section><div id="error" role="status"></div></main><footer>汪汪队　 /　 四人对战 Demo　　 <a href="https://m-league.jp/about/" target="_blank" rel="noreferrer">M.LEAGUE 官方规则</a></footer>
 <script src="/tiles.js"></script><script>
 const el=id=>document.getElementById(id), winds='东南西北';
 let auth=JSON.parse(sessionStorage.getItem('table')||'{}'), st,last='',busy=false;
@@ -54,7 +63,7 @@ function cue(kind,delay){
  });
 }
 function placeStick(offset){
- const origin=document.querySelector('[data-seat="'+offset+'"]'),target=el('pot');
+ const origin=document.querySelector('.station[data-seat="'+offset+'"] :is(.rack,.hand)'),target=el('pot');
  if(!origin||!target)return;
  const a=origin.getBoundingClientRect(),b=target.getBoundingClientRect(),stick=document.createElement('i');
  stick.className='flight stick';document.body.append(stick);
@@ -67,13 +76,13 @@ function placeStick(offset){
 }
 function playEffects(t){
  const events=t.effects||[],end=events.at(-1)?.seq??0;
- if(seen!==null&&!document.hidden){events.filter(e=>e.seq>seen).forEach((e,i)=>{cue(e.kind,i*.08);if(['吃','碰','杠','荣和','自摸'].includes(e.kind))announce(e,t);if(e.kind==='stick')placeStick((e.seat-t.l+4)%4)})}
+ if(seen!==null&&!document.hidden){events.filter(e=>e.seq>seen).forEach((e,i)=>{cue(e.kind,i*.08);if(['吃','碰','杠'].includes(e.kind))announce(e,t);if(e.kind==='stick')placeStick((e.seat-t.l+4)%4)})}
  seen=Math.max(seen??0,end);
 }
 document.querySelector('.art').innerHTML=['z7','s1','p1'].map(tile).join('');
 async function call(op,extra={}){
  if(busy)return;busy=true;
- try{const res=await fetch('/api',{method:'POST',body:JSON.stringify({...auth,op,...extra})});const data=await res.json();if(data.error){if(op==='state'&&!res.ok){auth={};sessionStorage.removeItem('table');el('room').hidden=true;el('lobby').hidden=false}throw Error(data.error)}
+ try{const res=await fetch('/api',{method:'POST',body:JSON.stringify({...auth,op,...extra})});const data=await res.json();if(res.status===401){showAccountGate();throw Error(data.error)}if(data.error){if(op==='state'&&!res.ok){auth={};sessionStorage.removeItem('table');el('room').hidden=true;el('lobby').hidden=false}throw Error(data.error)}
  auth={code:data.code,token:data.token};sessionStorage.setItem('table',JSON.stringify(auth));st=data;
  if(last!==JSON.stringify(st)){last=JSON.stringify(st);render()}el('error').textContent='';
  }catch(e){el('error').textContent=e.message}finally{busy=false}
@@ -130,38 +139,115 @@ function drawScreen(t,r){
 function deadWall(t){
  const columns=Array.from({length:7},(_,i)=>{
   const indicator=i>=2?t.dora[i-2]:null;
-  const label=indicator?'宝牌指示牌 · '+tileName(indicator):i<2?'岭上牌位':'王牌';
+  const label=indicator?'表宝指示牌 · '+tileName(indicator):i<2?'岭上牌位':'王牌';
   return '<span class="dead-stack" title="'+label+'"><span class="dead-bottom">'+tile('back')+'</span><span class="dead-top">'+tile(indicator||'back')+'</span></span>';
  });
  const names=t.dora.map(tileName).join('、');
- return '<div class="dead-wall" aria-label="王牌十四张">'+columns.join('')+'</div><div class="wall-caption">表宝 '+names+' · 岭上剩 '+t.rinshan+' 张</div>';
+ return '<div class="dead-wall" aria-label="王牌十四张">'+columns.join('')+'</div><div class="wall-caption">表宝指示牌 '+names+' · 岭上剩 '+t.rinshan+' 张</div>';
+}
+const seatLabels=['自家','下家','对家','上家'];
+let comparedSeat=0;
+function scoreStrip(t,interactive=true){
+ const cards=seatLabels.map((label,offset)=>{
+  const index=(t.l+offset)%4,player=t.players[index];
+  const identity='<span class="score-seat">'+label+' · '+winds[index]+'</span><span class="score-name">'+esc(player.name)+'</span>';
+  const points=offset && interactive
+   ? '<button class="score-points" type="button" data-compare="'+offset+'" aria-pressed="false" aria-label="'+esc('查看与'+player.name+'的点差')+'">'+player.score+'</button>'
+   : '<strong class="score-points">'+player.score+'</strong>';
+  return '<div class="score-card'+(index===t.turn?' score-current':'')+'">'+identity+points+'</div>';
+ });
+ return '<section class="score-strip" aria-label="四家当前点数"><div class="score-grid">'+cards.join('')+'</div><p id="score-difference" role="status"></p></section>';
+}
+function showScoreDifference(t){
+ const info=el('score-difference');
+ if(!info)return;
+ el('play').querySelectorAll('[data-compare]').forEach(button=>{
+  button.setAttribute('aria-pressed',String(Number(button.dataset.compare)===comparedSeat));
+ });
+ if(!comparedSeat){info.textContent='点击其他家的点数查看点差';return}
+ const other=t.players[(t.l+comparedSeat)%4];
+ const difference=t.players[t.l].score-other.score;
+ const label=seatLabels[comparedSeat]+' '+other.name;
+ info.textContent=difference===0?'你与'+label+'同分'
+  : '你'+(difference>0?'领先':'落后')+label+' '+Math.abs(difference).toLocaleString('zh-CN')+' 点';
+}
+el('play').addEventListener('click',event=>{
+ const button=event.target.closest('[data-compare]');
+ if(!button)return;
+ const offset=Number(button.dataset.compare);
+ comparedSeat=comparedSeat===offset?0:offset;
+ showScoreDifference(st.table);
+});
+function tableMarkup(t,h,reveal=false,interactive=true){
+ function station(offset){
+  const i=(t.l+offset)%4,p=t.players[i];
+  const rack=offset?'<div class="rack">'+(reveal ? tiles(p.hand).map(tile).join('') : Array.from({length:p.count},()=>tile('back')).join(''))+'</div>':'<div class="hand">'+h+'</div>';
+  return '<section class="station" data-seat="'+offset+'" style="--bearing:'+(-90*offset)+'deg">'+(i===0?'<span class="dealer-marker" role="img" aria-label="东家，庄家">东</span>':'')+rack+'<div class="mgroup">'+p.melds.map(meldGroup).join('')+'</div><div class="pool" style="--river-rows:'+Math.max(1,Math.ceil(p.river.filter(tile=>!/[+=-]$/.test(tile)).length/6))+'">'+riverMarkup(p.river)+'</div></section>';
+ }
+ return scoreStrip(t,interactive)+'<div class="viewport3d"><div class="camera"><div id="desk" class="table3d">'+[0,1,2,3].map(station).join('')+'<div class="hub"><b>'+t.round+'　'+t.honba+' 本场</b><p>余 '+t.left+' 枚 · <span id="pot">供托 '+t.sticks+(t.sticks?' <i class="stick"></i>':'')+'</span></p>'+deadWall(t)+'</div></div></div></div><p class="mobile-dora">表宝指示牌 '+t.dora.map(tileName).join('、')+'</p>';
+}
+const winDuration=2000;
+let liveWin;
+function pendingWin(t,result){
+ if(!result?.hupai)return false;
+ const key=st.code+':'+t.handNumber;
+ if(liveWin?.key!==key){
+  const intro={key,finished:false};
+  liveWin=intro;
+  setTimeout(()=>{
+   intro.finished=true;
+   if(liveWin===intro)render();
+  },winDuration);
+ }
+ return !liveWin.finished;
+}
+function winPrompt(t,result){
+ const type=result.baojia==null?'自摸':'荣和';
+ return '<div class="win-intro" role="status"><span>'+winds[result.l]+'家 · '+esc(t.players[result.l].name)+'</span><strong>'+type+'</strong></div>';
 }
 function fitTable(){
- const v=document.querySelector('.viewport3d');if(!v)return;
+ const v=document.querySelector('#room:not([hidden]) .viewport3d, #replay:not([hidden]) .viewport3d');if(!v)return;
  const zoom=Math.min(v.clientWidth/1015,1.05);v.style.height=(zoom*846)+'px';v.style.setProperty('--zoom',zoom);
 }
 window.addEventListener('resize',fitTable);
 function render(){
+ if(!st||!el('replay').hidden)return;
  el('lobby').hidden=true;el('room').hidden=false;el('title').textContent='房间 '+st.code;
  const dest=el('play'),t=st.table;
- if(st.final){dest.innerHTML='<div class="panel"><h2>半庄成绩</h2>'+st.names.map((n,i)=>'<p>'+esc(n)+'　'+st.final[i]+' pt</p>').join('')+'<button id="again">返回大厅</button></div>';el('again').onclick=()=>{sessionStorage.removeItem('table');location.href='/'};return}
- if(!t){dest.innerHTML='<div class="panel"><h2>等候入座</h2>'+Array.from({length:4},(_,i)=>'<p>'+('一二三四'[i])+'号席　'+esc(st.names[i]||'空席')+'</p>').join('')+(st.id===0?'<button id="start">开始半庄</button><p>开局时，电脑将补齐空席。</p>':'<p>等待房主开局</p>')+'</div>';if(el('start'))el('start').onclick=()=>call('start');return}
- function station(offset){
-  const i=(t.l+offset)%4,p=t.players[i];
-  const rack=offset?'<div class="rack">'+Array.from({length:p.count},()=>tile('back')).join('')+'</div>':'<div class="hand">'+h+'</div>';
-  return '<section class="station" style="--bearing:'+(-90*offset)+'deg">'+rack+'<div class="mgroup">'+p.melds.map(meldGroup).join('')+'</div><div class="nameplate" data-seat="'+offset+'">'+(t.turn===i?'▸ ':'')+winds[i]+' · '+esc(p.name)+'　'+p.score+'</div><div class="pool">'+riverMarkup(p.river)+'</div></section>';
+ const focusedScore=document.activeElement?.dataset.compare;
+ if(!t)comparedSeat=0;
+ if(st.final){
+  const scores=st.names.map((name,seat)=>({name,points:st.final[seat]}));
+  scores.sort((a,b)=>b.points-a.points);
+  const rows=scores.map(({name,points})=>'<p>'+esc(name)+'　'+points+' pt</p>').join('');
+  const rank=st.rankResult?rankSummary(st.rankResult.profile,st.rankResult):'';
+  dest.innerHTML='<div class="panel"><h2>半庄成绩</h2>'+rows+rank+'<div class="replay-finish"><button id="again">返回大厅</button><button data-open-replays>查看牌谱</button></div></div>';
+  el('again').onclick=()=>{sessionStorage.removeItem('table');location.href='/'};
+  return;
  }
+ if(!t){dest.innerHTML='<div class="panel"><h2>等候入座</h2>'+Array.from({length:4},(_,i)=>'<p>'+('一二三四'[i])+'号席　'+esc(st.names[i]||'空席')+'</p>').join('')+(st.id===0?'<button id="start">开始半庄</button><p>开局时，电脑将补齐空席。</p>':'<p>等待房主开局</p>')+'</div>';if(el('start'))el('start').onclick=()=>call('start');return}
  const opts=st.options, used=new Set(), hand=tiles(t.hand), actions=[];
  const declaring=opts.some(x=>x.startsWith('宣言 '));
  const prefix=declaring?'宣言 ':'打 ';
  const h=hand.map((p,k)=>{let i=opts.findIndex((x,i)=>!used.has(i)&&x===prefix+p+(k===hand.length-1?'_':''));if(i<0)i=opts.indexOf(prefix+p);if(i>=0)used.add(i);return '<button class="tile '+(p[1]==='0'?'red':'')+'" '+(i<0?'disabled':'data-i="'+i+'"')+' title="'+p+'">'+tile(p)+'</button>'}).join('');
  opts.forEach((x,i)=>{if(!used.has(i)&&!x.startsWith('宣言 '))actions.push('<button class="'+(/^(吃|碰|杠|立直|自摸|荣和|公开听牌)/.test(x)?'claim':'')+'" data-i="'+i+'">'+optionContent(x)+'</button>')});
- const result=st.result;
- dest.innerHTML=result?(result.hupai?winScreen(t,result):drawScreen(t,result)):'<div class="viewport3d"><div class="camera"><div id="desk" class="table3d">'+[0,1,2,3].map(station).join('')+'<div class="hub"><b>'+t.round+'　'+t.honba+' 本场</b><p>余 '+t.left+' 枚 · <span id="pot">供托 '+t.sticks+(t.sticks?' <i class="stick"></i>':'')+'</span></p>'+deadWall(t)+'</div></div></div></div><p class="mobile-dora">宝牌指示牌 '+t.dora.map(tileName).join('、')+'</p><div class="touchhand hand">'+h+'</div><p>'+(declaring?'请选择立直宣言牌':t.drawReveal?(opts.length?'荒牌流局 · 公开手牌才能按听牌结算':'荒牌流局 · 等待听牌者选择是否公开'):opts.length?(opts.some(x=>x.startsWith('打 '))?'请选择要打出的牌':'请选择操作'):'等待其他雀士')+'</p><div class="actions">'+actions.join('')+'</div>';
+ const result=st.result, introducing=pendingWin(t,result);
+ if(introducing){
+  if(!el('play').querySelector('.win-intro'))dest.innerHTML=tableMarkup(t,h,false,false)+winPrompt(t,result);
+  fitTable();playEffects(t);return;
+ }
+ dest.innerHTML=result?(result.hupai?winScreen(t,result):drawScreen(t,result)):tableMarkup(t,h)+'<div class="touchhand hand">'+h+'</div><p>'+(declaring?'请选择立直宣言牌':t.drawReveal?(opts.length?'荒牌流局 · 公开手牌才能按听牌结算':'荒牌流局 · 等待听牌者选择是否公开'):opts.length?(opts.some(x=>x.startsWith('打 '))?'请选择要打出的牌':'请选择操作'):'等待其他雀士')+'</p><div class="actions">'+actions.join('')+'</div>';
  fitTable();playEffects(t);
+ if(!result){
+  showScoreDifference(t);
+  if(focusedScore)dest.querySelector('[data-compare="'+focusedScore+'"]')?.focus({preventScroll:true});
+ }
  dest.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>call('act',{nonce:st.nonce,i:+b.dataset.i}));
 }
-el('create').onclick=()=>call('create',{name:el('nick').value});el('join').onclick=()=>call('join',{name:el('nick').value,code:el('code').value});
+el('create').onclick=()=>call('create');el('join').onclick=()=>call('join',{code:el('code').value.trim()});
 el('copy').onclick=async()=>{const invitation=new URL(location.href);if(st.lan&&['localhost','127.0.0.1'].includes(location.hostname))invitation.hostname=st.lan;invitation.search='?room='+st.code;const url=invitation.href;try{await navigator.clipboard.writeText(url);el('copy').textContent='邀请已复制'}catch{prompt('复制房间邀请',url)}};
-if(auth.token)call('state');setInterval(()=>{if(auth.token)call('state')},400);
-</script><script src="/meshes.js"></script></html>
+document.addEventListener('DOMContentLoaded',()=>{
+ restoreAccount();
+ setInterval(()=>{if(profile&&auth.token&&!st?.final)call('state')},400);
+});
+</script><script src="/account-ui.js"></script><script src="/replay.js"></script><script src="/meshes.js"></script></html>

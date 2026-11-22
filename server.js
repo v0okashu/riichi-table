@@ -4,8 +4,37 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const M = require('./engine');
 const { LeagueGame } = require('./league');
+const { buildReplay } = require('./replay-data');
 const ComputerPlayer = require('@kobalab/majiang-ai');
+const { openAccounts, sessionLifetime } = require('./accounts');
+const accounts = openAccounts(path.join(process.env.RIICHI_DATA_DIR || path.join(__dirname,'data'),'accounts.sqlite'));
 const rooms = new Map();
+
+function requestToken(req) {
+ return req.headers.cookie?.match(/(?:^|;\s*)riichi_session=([0-9a-f]{64})(?=;|$)/)?.[1];
+}
+function sessionCookie(req, res, token, maxAge) {
+ const secure = req.socket.encrypted || req.headers['x-forwarded-proto']==='https';
+ res.setHeader('Set-Cookie','riichi_session='+token+'; Path=/; Max-Age='+maxAge+'; HttpOnly; SameSite=Strict'+(secure?'; Secure':''));
+}
+function applyRankResults(room) {
+ if(room.ranks)return;
+ const accountIds=room.seats.map(seat=>seat.accountId??null);
+ const participants=accountIds.flatMap((id,index)=>id?[{id,points:room.final[index]}]:[]);
+ room.ranks=accounts.applyMatch(room.completed.id,participants,{
+  ...room.completed,accountIds,final:room.final,walls:room.game.walls
+ });
+}
+function sendSavedReplay(res,accountId,matchId){
+ const match=typeof matchId==='string' && accounts.savedMatch(accountId,matchId);
+ if(!match){
+  res.statusCode=404;
+  return res.end(JSON.stringify({error:'找不到这份牌谱'}));
+ }
+ const {record,walls,...summary}=match;
+ return res.end(JSON.stringify({...summary,rounds:buildReplay(record,walls)}));
+}
+
 const rule = M.rule({'順位点':['50.0','10.0','-10.0','-30.0'],'連風牌は2符':true,'途中流局あり':false,'流し満貫あり':false,'ノーテン宣言あり':true,'最大同時和了数':1,'トビ終了あり':false,'オーラス止めあり':false,'延長戦方式':0,'カンドラ後乗せ':false,'ツモ番なしリーチあり':true,'リーチ後暗槓許可レベル':1,'ダブル役満あり':false,'数え役満あり':false,'切り上げ満貫あり':true});
 const winds='东南西北';
 function choices(g,l,type){
@@ -49,14 +78,18 @@ function start(r){
   }
   if(type==='qipai')r.result=null;
   if(type==='hule'||type==='pingju')r.result={...msg[type],chomboSeat:g.chomboSeat};
-  if(type==='jieju')r.final=g.leagueResult.points;
+  if(type==='jieju'&&!r.final){
+   r.completed={id:crypto.randomUUID(),at:new Date().toISOString(),record:msg.jieju};
+   r.final=g.leagueResult.points;
+   try{applyRankResults(r)}catch(error){console.error('保存段位结果失败',error.message);}
+  }
   if(type==='drawReveal' && bots[id]){
    const show=M.Game.allow_no_daopai(rule,g.model.shoupai[l],g.model.shan.paishu);
    return cb(show?{daopai:'-'}:{});
   }
   if(bots[id]){
    const hasDecision=cb && choices(g,l,type).length>0;
-   const readyAt=Date.now()+(hasDecision?crypto.randomInt(1000,5001):0);
+   const readyAt=Date.now()+(hasDecision?crypto.randomInt(1000,3001):0);
    return bots[id].action(msg,cb && (reply=>{
     if(hasDecision)setTimeout(()=>cb(reply||{}),Math.max(0,readyAt-Date.now()));
     else cb(reply||{});
@@ -68,12 +101,13 @@ function start(r){
   if(options.length===1 && options[0].label==='继续摸切')return setTimeout(()=>cb(options[0].reply),450);
   s.pending={nonce:crypto.randomUUID(),options,cb};
  }}));
- r.game=new LeagueGame(players,()=>{},rule,'雀庭');r.game.model.player=r.seats.map(s=>s.name);r.game.speed=0;r.game.kaiju();
+ r.game=new LeagueGame(players,()=>{},rule,'汪汪队');r.game.model.player=r.seats.map(s=>s.name);r.game.speed=0;r.game.kaiju();
 }
 function state(r,s){
+ if(r.completed)applyRankResults(r);
  const id=r.seats.indexOf(s),g=r.game,m=g?.model,l=m?.player_id.indexOf(id);
- const local=require('node:os').networkInterfaces(); const lan=Object.values(local).flat().find(a=>a?.family==='IPv4'&&!a.internal&&/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address)); return {lan:lan?.address,code:r.code,id,names:r.seats.map(x=>x.name),started:!!g,final:r.final,result:r.result,
- table:m?.shan && {l,drawReveal:g._status==='drawReveal',effects:g.effects,round:winds[Math.min(1,m.zhuangfeng)]+(m.zhuangfeng>1?4:m.jushu+1)+'局',honba:m.changbang,sticks:m.lizhibang,left:m.shan.paishu,dora:m.shan.baopai,rinshan:m.shan.rinshanRemaining,turn:m.lunban,hand:m.shoupai[l].toString().split(',')[0],players:m.player_id.map((i,j)=>({name:r.seats[i].name,count:(m.shoupai[j].toString().split(',')[0].match(/[0-9]/g)||[]).length,score:m.defen[i],river:m.he[j]._pai,melds:m.shoupai[j]._fulou}))},
+ const local=require('node:os').networkInterfaces(); const lan=Object.values(local).flat().find(a=>a?.family==='IPv4'&&!a.internal&&/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address)); return {lan:lan?.address,code:r.code,id,names:r.seats.map(x=>x.name),started:!!g,final:r.final,rankResult:r.ranks?.[s.accountId],replayId:r.completed?.id,result:r.result,
+ table:m?.shan && {l,handNumber:g.walls.length,drawReveal:g._status==='drawReveal',effects:g.effects,round:winds[Math.min(1,m.zhuangfeng)]+(m.zhuangfeng>1?4:m.jushu+1)+'局',honba:m.changbang,sticks:m.lizhibang,left:m.shan.paishu,dora:m.shan.baopai,rinshan:m.shan.rinshanRemaining,turn:m.lunban,hand:m.shoupai[l].toString().split(',')[0],players:m.player_id.map((i,j)=>({name:r.seats[i].name,count:(m.shoupai[j].toString().split(',')[0].match(/[0-9]/g)||[]).length,score:m.defen[i],river:m.he[j]._pai,melds:m.shoupai[j]._fulou}))},
  nonce:s.pending?.nonce,options:s.pending?.options.map(o=>o.label)||[]};
 }
 const page=fs.readFileSync(path.join(__dirname,'index.html')); const tilesScript=fs.readFileSync(path.join(__dirname,'tiles.js'));
@@ -85,7 +119,7 @@ http.createServer(async(req,res)=>{
   if(zipped)res.setHeader('Content-Encoding','gzip');
   return fs.createReadStream(path.join(__dirname,zipped?'tiles.glb.gz':'tiles.glb')).pipe(res);
  }
- if(req.method==='GET'&&req.url==='/meshes.js'){res.setHeader('Content-Type','text/javascript');return res.end(fs.readFileSync(path.join(__dirname,'meshes.js')))}
+ if(req.method==='GET'&&['/meshes.js','/replay.js','/account-ui.js'].includes(req.url)){res.setHeader('Content-Type','text/javascript');return res.end(fs.readFileSync(path.join(__dirname,req.url.slice(1))))}
  if(req.method==='GET'&&['/faces.png','/table.css'].includes(req.url)){
   res.setHeader('Content-Type',req.url.endsWith('.png')?'image/png':'text/css;charset=utf-8');
   return res.end(fs.readFileSync(path.join(__dirname,req.url.slice(1))));
@@ -94,15 +128,51 @@ http.createServer(async(req,res)=>{
  if(req.method==='GET'&&req.url.split('?')[0]==='/'){res.setHeader('Content-Type','text/html;charset=utf-8');return res.end(page)}
  if(req.method!=='POST'||req.url!=='/api'){res.writeHead(404);return res.end()}
  let body='';for await(const part of req){body+=part;if(body.length>4000)throw Error('请求过长')}
- const b=JSON.parse(body);let r=rooms.get(b.code),s;
- if(b.op==='create'){let code;do{code=crypto.randomInt(100000,1000000).toString()}while(rooms.has(code));r={code,seats:[]};rooms.set(code,r)}
+ const b=JSON.parse(body);
+ const loginToken=requestToken(req);
+ res.setHeader('Content-Type','application/json');
+ res.setHeader('Cache-Control','no-store');
+ if(['register','login'].includes(b.op)){
+  const login=await accounts.authenticate(b.op,b);
+  sessionCookie(req,res,login.token,sessionLifetime);
+  return res.end(JSON.stringify({profile:login.profile}));
+ }
+ if(b.op==='logout'){
+  accounts.logout(loginToken);
+  sessionCookie(req,res,'',0);
+  return res.end('{}');
+ }
+ const accountId=accounts.accountId(loginToken);
+ if(b.op==='me')return res.end(JSON.stringify({profile:accountId?accounts.profile(accountId):null}));
+ if(!accountId){res.statusCode=401;return res.end(JSON.stringify({error:'请先登录'}));}
+
+ if(b.op==='history')return res.end(JSON.stringify({matches:accounts.matches(accountId)}));
+ if(b.op==='savedReplay')return sendSavedReplay(res,accountId,b.matchId);
+
+ let r=rooms.get(b.code),s;
+ if(b.op==='create'){
+  let code;
+  do{code=crypto.randomInt(100000,1000000).toString()}while(rooms.has(code));
+  r={code,seats:[]};
+  rooms.set(code,r);
+ }
  if(!r)throw Error('找不到房间');
  if(['create','join'].includes(b.op)){
- if(r.game||r.seats.length===4)throw Error('房间已开局或已满');
- s={name:String(b.name||'雀士').trim().slice(0,12)||'雀士',token:crypto.randomUUID()};r.seats.push(s);
+  s=r.seats.find(seat=>seat.accountId===accountId);
+  if(!s){
+   if(r.game||r.seats.length===4)throw Error('房间已开局或已满');
+   s={name:accounts.profile(accountId).nickname,accountId,token:crypto.randomUUID()};
+   r.seats.push(s);
+  }
  }else{
- s=r.seats.find(x=>x.token&&x.token===b.token);if(!s)throw Error('座位凭证失效');
+  s=r.seats.find(seat=>seat.accountId===accountId&&seat.token===b.token);
+  if(!s)throw Error('座位凭证失效');
  if(b.op==='start'){if(s!==r.seats[0]||r.game)throw Error('只有房主能开局');start(r)}
+ if(b.op==='replay'){
+  if(!r.completed)throw Error('半庄结束后才能查看牌谱');
+  applyRankResults(r);
+  return sendSavedReplay(res,accountId,r.completed.id);
+ }
  if(b.op==='act'){
   const p=s.pending;
   if(!p||p.nonce!==b.nonce||!Number.isInteger(b.i)||!p.options[b.i])throw Error('操作已过期');
@@ -116,16 +186,6 @@ http.createServer(async(req,res)=>{
    p.cb(action);
   }
  }
-
-
-
-
-
-
-
-
-
-
  }
  res.setHeader('Content-Type','application/json');res.end(JSON.stringify({...state(r,s),token:s.token}));
  }catch(e){res.writeHead(400);res.end(JSON.stringify({error:e.message}))}
