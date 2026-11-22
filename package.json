@@ -1,0 +1,16 @@
+{
+  "name": "riichi-table",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@kobalab/majiang-ai": "1.3.0",
+    "@kobalab/majiang-core": "^1.4.1"
+  }
+}
