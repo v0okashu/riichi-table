@@ -2,6 +2,11 @@
    Input is a 684 x 520 BGRA sampling of the cleaned reference atlas. */
 const fs=require('node:fs');
 const pixels=fs.readFileSync(process.argv[2]);
+if(pixels.length!==684*520*4)throw Error('Expected a 684 x 520 BGRA atlas');
+const toLinear=channel=>{
+ const srgb=channel/255;
+ return Math.round(255*(srgb<=.04045?srgb/12.92:((srgb+.055)/1.055)**2.4));
+};
 const W=76,H=104, parts=[],views=[],accessors=[],meshes=[],nodes=[];
 let length=0;
 function accessor(array,type,count,target,min,max){
@@ -14,12 +19,12 @@ function accessor(array,type,count,target,min,max){
 }
 function makeTile(id,col,row){
  const pos=[],rgb=[],idx=[],norm=[];
- function vertex(x,y,z,c){pos.push(x*.001,-y*.001,z*.001);rgb.push(...c,255);return rgb.length/4-1}
+ function vertex(x,y,z,c){pos.push(x*.001,-y*.001,z*.001);rgb.push(...c.map(toLinear),255);return rgb.length/4-1}
  function face(a,b,c){idx.push(a,c,b)}
- const width=20.5,height=28,d=16.5,ivory=[251,248,230],amber=[226,170,57];
+ const width=20.5,height=28,d=16.5,ivory=[252,250,238],amber=[225,167,59],seam=[170,119,32];
  function xy(u,v,inset){
   const x=(u-.5)*(width-2*inset),y=(v-.5)*(height-2*inset);
-  const r=1.4,dx=Math.max(0,Math.abs(x)-(width/2-inset-r)),dy=Math.max(0,Math.abs(y)-(height/2-inset-r));
+  const r=1.75-inset*.55,dx=Math.max(0,Math.abs(x)-(width/2-inset-r)),dy=Math.max(0,Math.abs(y)-(height/2-inset-r));
   const f=dx&&dy?Math.max(dx,dy)/Math.hypot(dx,dy):1;
   return [x-Math.sign(x)*dx*(1-f),y-Math.sign(y)*dy*(1-f)];
  }
@@ -29,7 +34,7 @@ function makeTile(id,col,row){
   const pigment=[pixels[off+2],pixels[off+1],pixels[off]];
   const ink=flat?0:Math.max(0,Math.min(1,(249-Math.min(...pigment))/190));
   const color=flat?(id==='back'?amber:ivory):pigment.map((v,i)=>Math.round(v*ivory[i]/255));
-  vertex(...xy(u,v,.72),d/2-.68*ink*ink*(3-2*ink),color);
+  vertex(...xy(u,v,.72),d/2-.46*ink*ink*(3-2*ink),color);
   if(x&&y){const k=y*(nx+1)+x;face(k-nx-2,k-nx-1,k);face(k-nx-2,k,k-1)}
  }
  let rim=[];
@@ -38,7 +43,11 @@ function makeTile(id,col,row){
  for(let x=nx-1;x>=0;x--)rim.push(ny*(nx+1)+x);
  for(let y=ny-1;y>0;y--)rim.push(y*(nx+1));
  const uv=rim.map(i=>[(i%(nx+1))/nx,Math.floor(i/(nx+1))/ny]);
- for(const [inset,z,c] of [[.32,8.13,ivory],[.08,7.86,ivory],[0,7.45,ivory],[0,-4.9,ivory],[0,-4.92,amber],[0,-7.45,amber],[.12,-7.87,amber],[.38,-8.15,amber],[.72,-8.25,amber]]){
+ for(const [inset,z,c] of [
+  [.48,8.21,ivory],[.21,8.06,ivory],[.06,7.79,ivory],[0,7.52,ivory],
+  [0,-4.42,ivory],[.045,-4.5,seam],[0,-4.58,amber],
+  [0,-7.52,amber],[.06,-7.79,amber],[.21,-8.06,amber],[.48,-8.21,amber],[.72,-8.25,amber]
+ ]){
   const ring=uv.map(([u,v])=>vertex(...xy(u,v,inset),z,c));
   rim.forEach((a,i)=>{const j=(i+1)%rim.length;face(a,ring[j],rim[j]);face(a,ring[i],ring[j])});rim=ring;
  }
@@ -64,4 +73,3 @@ const chunk=(data,type,fill)=>{const pad=(4-data.length%4)%4,h=Buffer.alloc(8);h
 const chunks=[chunk(json,0x4e4f534a,32),chunk(Buffer.concat(parts),0x004e4942,0)],header=Buffer.alloc(12);
 header.write('glTF');header.writeUInt32LE(2,4);header.writeUInt32LE(12+chunks.reduce((s,b)=>s+b.length,0),8);
 fs.writeFileSync('tiles.glb',Buffer.concat([header,...chunks]));
-
