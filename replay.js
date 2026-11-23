@@ -146,9 +146,8 @@ function openMatchReplay(match){
  function paint(){
   const frame=round.frames[step],table={...frame.table,l:viewerSeat};
   const hand=tiles(table.players[viewerSeat].hand).map(tile).join('');
-  el('replay-table').innerHTML=tableMarkup(table,hand,reveal.checked,false)
-   +'<div class="touchhand hand">'+hand+'</div>';
-  fitTable();
+  updateTableArea(el('replay-table'),tableMarkup(table,hand,{reveal:reveal.checked,interactive:false,replay:true})
+   +'<div class="touchhand hand">'+hand+'</div>');
   const turn=currentTurn();
   turnSelect.value=turn;
   const events={qipai:'配牌',zimo:'摸牌',dapai:'打牌',fulou:'鸣牌',gang:'杠',gangzimo:'岭上摸牌',kaigang:'翻指示牌',hule:'和牌',pingju:frame.result?.name==='诈立'?'诈立':'流局'};

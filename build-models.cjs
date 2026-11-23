@@ -29,8 +29,12 @@ function makeTile(id,col,row){
   return [x-Math.sign(x)*dx*(1-f),y-Math.sign(y)*dy*(1-f)];
  }
  const flat=id==='back'||id==='z5',nx=flat?12:W-1,ny=flat?16:H-1;
+ const upsideDown=id==='s3';
  for(let y=0;y<=ny;y++)for(let x=0;x<=nx;x++){
-  const u=x/nx,v=y/ny,off=((row*H+Math.round(v*(H-1)))*684+col*W+Math.round(u*(W-1)))*4;
+  const u=x/nx,v=y/ny;
+  const sampleX=Math.round((upsideDown?1-u:u)*(W-1));
+  const sampleY=Math.round((upsideDown?1-v:v)*(H-1));
+  const off=((row*H+sampleY)*684+col*W+sampleX)*4;
   const pigment=[pixels[off+2],pixels[off+1],pixels[off]];
   const ink=flat?0:Math.max(0,Math.min(1,(249-Math.min(...pigment))/190));
   const color=flat?(id==='back'?amber:ivory):pigment.map((v,i)=>Math.round(v*ivory[i]/255));

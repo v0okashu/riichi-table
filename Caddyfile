@@ -1,0 +1,3 @@
+{$RIICHI_DOMAIN} {
+    reverse_proxy game:8787
+}

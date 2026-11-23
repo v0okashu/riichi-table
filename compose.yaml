@@ -1,0 +1,25 @@
+services:
+  game:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - game-data:/app/data
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - game
+    environment:
+      RIICHI_DOMAIN: "${RIICHI_DOMAIN:?Set RIICHI_DOMAIN to the game hostname}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  game-data:
+  caddy-data:
+  caddy-config:

@@ -41,6 +41,7 @@ function openAccounts(file) {
  `);
 
  const byId = db.prepare('SELECT id, nickname, rank, stage FROM accounts WHERE id=?');
+ const allAccounts = db.prepare('SELECT id, nickname, rank, stage FROM accounts ORDER BY id');
  const lookup = db.prepare('SELECT id, salt, password_hash FROM accounts WHERE username=?');
  const insertAccount = db.prepare(`
   INSERT INTO accounts(username,nickname,salt,password_hash) VALUES(?,?,?,?)
@@ -68,11 +69,24 @@ function openAccounts(file) {
  const setRank = db.prepare('UPDATE accounts SET rank=?, stage=stage+1 WHERE id=?');
 
  function profile(id) {
-  const account = byId.get(id);
+  return accountProfile(byId.get(id));
+ }
+
+ function accountProfile(account) {
+  const {id}=account;
   const recent = history.get(id,account.stage,windowSize);
   return {id,nickname:account.nickname,rank:ranks[account.rank],recentCount:recent.count,
    recentPoints:recent.points/10,
    ...(account.rank===ranks.length-1?{topPoints:stageTotal.get(id,account.stage).points/10}:{})};
+ }
+
+ function leaderboard(viewerId) {
+  return allAccounts.all().map(account=>{
+   const current=accountProfile(account);
+   return {rankIndex:account.rank,nickname:current.nickname,rank:current.rank,
+    points:current.topPoints??current.recentPoints,isSelf:account.id===viewerId};
+  }).sort((a,b)=>b.rankIndex-a.rankIndex||b.points-a.points)
+   .map(({nickname,rank,points,isSelf})=>({nickname,rank,points,isSelf}));
  }
 
  function session(id) {
@@ -156,7 +170,7 @@ function openAccounts(file) {
   }
  }
 
- return {authenticate,accountId,logout,profile,applyMatch,matches,savedMatch};
+ return {authenticate,accountId,logout,profile,leaderboard,applyMatch,matches,savedMatch};
 }
 
 module.exports = {openAccounts,sessionLifetime};

@@ -2,9 +2,9 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#102826;color:#f5f0dc;font:16px "Microsoft YaHei",sans-serif}header,main,footer{max-width:1180px;margin:auto;padding:20px 5vw}header{display:flex;align-items:center;gap:14px;border-bottom:1px solid #45605a}header b{font: bold 26px serif}header small{margin-left:auto;color:#bdd1c7}.seal{background:#b94432;padding:6px 9px;border-radius:4px;font:bold 23px serif}main{min-height:78vh;display:grid;align-content:center;gap:20px}#lobby{display:grid;grid-template-columns:1.25fr 1fr;align-items:center;gap:7vw}.art{display:flex;gap:8px;transform:rotate(-8deg);margin:55px 0 50px 12px}.art i{background:linear-gradient(120deg,#fffbee,#dfd8bd);color:#1c5144;font: bold clamp(55px,7vw,105px) serif;border-radius:10px;padding:6px 10px;border-bottom:9px solid #c4a96c;box-shadow:4px 9px 0 #091f1c}.art i:first-child{color:#af422f}.art i:last-child{transform:rotate(10deg) translateY(-8px)}h1{font: bold clamp(40px,6vw,76px) serif;margin:14px 0}h2{font: bold 30px serif;margin:0 0 24px}.gold,footer{color:#c6b884}p{line-height:1.7;color:#cfdbcf}.panel{padding:30px;background:#203d37;border:1px solid #486057;border-radius:14px}label{display:block;margin:16px 0 7px}input,button{font:inherit;border-radius:6px;padding:11px 15px}input{background:#112e29;color:white;border:1px solid #657b6f;width:100%}button{background:#eedba5;color:#18342b;border:0;font-weight:600;cursor:pointer}button:hover{filter:brightness(1.1)}button:disabled{cursor:default}.wide{width:100%;margin-top:14px}.join{display:flex;gap:8px}.join button{white-space:nowrap}.secondary{background:#34534a;color:#f3eedf}#desk{background:radial-gradient(ellipse at center,#266654,#174739 75%);border:5px solid #435048;border-radius:20px;padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;align-items:center;min-height:430px}.seat{background:#173e34b0;border-radius:7px;padding:9px;min-width:0}.seat b{font-size:15px}.seat strong{float:right;color:#efdba5}.river{display:grid;grid-template-columns:repeat(6,minmax(0,25px));margin-top:7px;gap:2px}.tile{display:inline-grid;place-items:center;background:#fff9e4;border:1px solid #c7c1a5;border-bottom:3px solid #c1ad7a;border-radius:4px;color:#224c46;font:28px "Segoe UI Symbol",serif}.red{color:#b93c31}.river .tile{font-size:19px}.center{text-align:center}.hand{display:flex;flex-wrap:wrap;gap:3px;margin:16px 0}.hand .tile{font-size:clamp(23px,4vw,48px);padding:3px}.hand button:enabled:hover{transform:translateY(-5px)}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{padding:8px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}#error{color:#ffdb9d}footer{border-top:1px solid #375049;font-size:13px}a{color:inherit}[hidden]{display:none!important}@media(max-width:700px){#lobby{grid-template-columns:1fr;gap:12px}.art{margin:20px 0}.art i{font-size:42px}main{padding:18px 3vw}.panel{padding:18px}#desk{padding:5px;gap:3px;min-height:315px;grid-template-columns:1fr 1fr 1fr}.seat{padding:4px}.seat strong{float:none;display:block}.river .tile{font-size:14px}.seat b{font-size:13px}.center{font-size:13px}}
 .model{display:inline-block;width:38px;height:auto;vertical-align:middle}.art .model{width:clamp(70px,9vw,118px);filter:drop-shadow(4px 7px 3px #071c17)}.art .model:last-child{transform:rotate(13deg)}
-#desk{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;padding:12px;gap:5px}.seat{border:1px solid #467364;padding:8px}.river{grid-template-columns:repeat(6,minmax(0,1fr));max-width:272px;gap:3px}.discard{position:relative;min-width:0;text-align:center}.discard img{width:100%;max-width:42px}.discard span{display:block;font:bold 12px/1.35 "Microsoft YaHei",sans-serif;border-radius:3px}.cut span{background:#c4dcf0;color:#153343}.draw span{background:#ecce89;color:#34280e}.discard em{position:absolute;left:0;top:0;font: bold 11px sans-serif;background:#92251d;color:white;padding:2px;border-radius:3px}.center{align-self:center}.hand .tile{border:0;background:none;padding:0}.hand .model{width:clamp(28px,5vw,58px)}.seat small img,.center .model{width:26px}.seat small{display:inline-block;margin:5px 4px 0 0}main{max-width:1340px}
+#desk{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;padding:12px;gap:5px}.seat{border:1px solid #467364;padding:8px}.river{grid-template-columns:repeat(6,minmax(0,1fr));max-width:272px;gap:3px}.discard{position:relative;min-width:0;text-align:center}.discard img{width:100%;max-width:42px}.center{align-self:center}.hand .tile{border:0;background:none;padding:0}.hand .model{width:clamp(28px,5vw,58px)}.seat small img,.center .model{width:26px}.seat small{display:inline-block;margin:5px 4px 0 0}main{max-width:1340px}
 @media(max-width:920px){#desk{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"info info" "across right" "left self"}.center{grid-area:info!important}.center p{display:inline;margin:0 10px}.seat:nth-child(1){grid-area:across!important}.seat:nth-child(2){grid-area:left!important}.seat:nth-child(4){grid-area:right!important}.seat:nth-child(5){grid-area:self!important}}
-@media(max-width:570px){#desk{grid-template-columns:1fr;grid-template-areas:"info" "across" "right" "left" "self";padding:8px}.seat strong{float:right}.river{max-width:100%;grid-template-columns:repeat(6,minmax(0,43px))}.seat{padding:7px}.seat b{font-size:15px}.discard span{font-size:13px}.hand .model{width:36px}}
+@media(max-width:570px){#desk{grid-template-columns:1fr;grid-template-areas:"info" "across" "right" "left" "self";padding:8px}.seat strong{float:right}.river{max-width:100%;grid-template-columns:repeat(6,minmax(0,43px))}.seat{padding:7px}.seat b{font-size:15px}.hand .model{width:36px}}
 .seat{--angle:0deg}.seat[data-seat="1"]{--angle:-90deg}.seat[data-seat="2"]{--angle:180deg}.seat[data-seat="3"]{--angle:90deg}.front{height:55px;display:grid;place-items:center}.front img{transform:rotate(var(--angle));width:100%;max-width:42px}.seat:is([data-seat="1"],[data-seat="3"]) .river{grid-template-columns:repeat(auto-fit,minmax(0,54px));grid-auto-columns:minmax(0,54px)}.seat:is([data-seat="1"],[data-seat="3"]) .front{height:42px}.seat:is([data-seat="1"],[data-seat="3"]) .front img{width:76%}.seat small img{transform:rotate(var(--angle));margin:3px}
 .stick{display:inline-block;width:48px;height:8px;border-radius:3px;background:radial-gradient(circle,#bc322b 2px,transparent 2.6px) center/100% 100%,linear-gradient(#fffdf2,#ddd5ba);box-shadow:0 2px 3px #102c25;vertical-align:middle}.flight{position:fixed;pointer-events:none;z-index:20}#pot{display:inline-block}.top{flex-wrap:wrap}.top h2{margin-right:auto}
 .backs,.melds,.meld,.winhand{display:flex;align-items:center;flex-wrap:wrap}.backs{clear:both;flex-wrap:nowrap;margin:7px 0;gap:0}.backs .model{width:min(6.7%,19px)}.seat[data-seat="2"] .backs .model{transform:rotate(180deg)}.seat:is([data-seat="1"],[data-seat="3"]) .backs .model{transform:rotate(var(--angle)) scale(.82)}.melds{gap:7px}.meld .model{width:24px}.meld .called{transform:rotate(-90deg);margin:0 4px}.actions:has(.claim){position:sticky;bottom:8px;z-index:3;background:#102e28;padding:10px;border:1px solid #e0bf75;border-radius:9px;box-shadow:0 4px 20px #0008}.actions .claim{background:#aa3628;color:#fffbea;font-size:21px;padding:12px 19px;min-height:52px;border:2px solid #f3c879}.announcement{pointer-events:none;position:fixed;z-index:25;top:36%;left:50%;transform:translateX(-50%);text-align:center;color:#ffefc6;background:#28362bf5;border-block:3px solid #e5bd72;padding:10px 50px;animation:announce 1.35s both}.announcement small,.announcement b{display:block}.announcement b{font:bold 54px serif}@keyframes announce{0%{opacity:0;translate:0 18px}18%,82%{opacity:1;translate:0 0}100%{opacity:0;translate:0 -8px}}.settlement{padding:clamp(16px,4vw,44px);background:#1c4035;border:1px solid #9e9367;border-radius:14px}.settlement h1{font-size:clamp(32px,5vw,55px)}.winhand{margin:22px 0;gap:2px}.winhand .model{width:clamp(25px,4.1vw,52px)}.winning,.winhand .meld{margin-left:8px}.settlement h2{color:#f5d591;margin-bottom:12px}.settlement h2 small{font-size:18px}.yaku{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}.yaku span{padding:5px 8px;background:#305345}.payout{display:flex;justify-content:space-between;border-top:1px solid #526a59;padding:8px 0}.settlement button{margin-top:14px}@media(prefers-reduced-motion:reduce){.announcement{animation:none}}
@@ -13,22 +13,30 @@
  <div class="account-tabs"><button id="login-tab" type="button" aria-pressed="true">登录</button><button id="register-tab" type="button" aria-pressed="false">注册</button></div>
  <form id="account-form">
   <label for="account-username">账号</label><input id="account-username" name="username" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="3～24 位字母、数字或下划线">
-  <label for="account-password">密码</label><input id="account-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128">
+  <label for="account-password">密码</label><div class="password-field"><input id="account-password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128"><button id="show-password" type="button" aria-label="显示密码" aria-pressed="false" title="显示密码"><span class="eye-icon" aria-hidden="true"></span></button></div>
   <div id="register-nickname" hidden><label for="account-nickname">雀士昵称</label><input id="account-nickname" name="nickname" maxlength="24" placeholder="最多 12 个字符"></div>
+  <div class="remember-login" id="remember-login" hidden><label><input id="remember-account" type="checkbox">记住账号</label><label><input id="remember-password" type="checkbox">记住密码</label></div>
   <button id="account-submit" class="wide">登录</button>
  </form>
 </section>
-<section id="lobby" hidden><div><div class="art" aria-hidden="true"></div><h1>好友牌桌</h1><p>四人立直麻将 · 东南半庄 · 赤牌三枚</p></div><div class="panel"><h2>入座</h2><div id="account-profile"></div><button class="wide" id="create">创建房间</button><button type="button" class="secondary wide" data-open-replays>牌谱</button><label for="code">已有房间号</label><div class="join"><input id="code" inputmode="numeric" maxlength="6" placeholder="六位房间号"><button class="secondary" id="join">加入</button></div></div></section>
+<section id="lobby" hidden><div><div class="art" aria-hidden="true"></div><h1>好友牌桌</h1><p>四人立直麻将 · 东南半庄 · 赤牌三枚</p></div><div class="panel"><h2>入座</h2><div id="account-profile"></div><button class="wide" id="create">创建房间</button><div class="lobby-links"><button type="button" class="secondary" data-open-replays>牌谱</button><button type="button" class="secondary" id="open-leaderboard">排行榜</button></div><form id="join-form"><label for="code">已有房间号</label><div class="join"><input id="code" maxlength="32" placeholder="输入房间号" required><button class="secondary" id="join" type="submit">加入</button></div></form></div></section>
+<section id="leaderboard" hidden><div class="top"><h2>排行榜</h2><button type="button" class="secondary" id="leaderboard-back">返回大厅</button></div><div class="panel" id="leaderboard-content"></div></section>
 <section id="room" hidden><div class="top"><h2 id="title"></h2><button class="secondary" id="sound"></button><button class="secondary" id="copy">复制邀请</button></div><div id="play"></div></section><section id="replay" hidden></section><div id="error" role="status"></div></main><footer>汪汪队　 /　 四人对战 Demo　　 <a href="https://m-league.jp/about/" target="_blank" rel="noreferrer">M.LEAGUE 官方规则</a></footer>
 <script src="/tiles.js"></script><script>
 const el=id=>document.getElementById(id), winds='东南西北';
 let auth=JSON.parse(sessionStorage.getItem('table')||'{}'), st,last='',busy=false;
-const invited=new URLSearchParams(location.search).get('room');el('code').value=invited||'';if(invited&&invited!==auth.code)auth={};
+const parameters=new URLSearchParams(location.search);
+const forceLogin=parameters.has('login');
+if(forceLogin){parameters.delete('login');history.replaceState(null,'',location.pathname+(parameters.size?'?'+parameters:''))}
+const roomParam=parameters.get('room');
+const invited=/^[0-9]{6}$/.test(roomParam??'')?roomParam:'';
+el('code').value=invited;
+if(invited&&invited!==auth.code){auth={};sessionStorage.removeItem('table')}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function tiles(s){return [...s.matchAll(/([mpsz])([0-9]+)/g)].flatMap(m=>[...m[2]].map(n=>m[1]+n))}
 function face(p){const n=+p[1]||5;return String.fromCodePoint(p[0]==='z'?0x1f000+[0,0,1,2,3,6,5,4][n]:({m:0x1f007,s:0x1f010,p:0x1f019}[p[0]])+n-1)+'︎'}
 function tile(p){return modelTile(p)}
-function riverMarkup(river){
+function riverMarkup(river,replay){
  const rows=[];
  let pendingRiichi=false,visibleIndex=0;
  river.forEach((p,index)=>{
@@ -37,13 +45,14 @@ function riverMarkup(river){
   pendingRiichi=riichi&&called;
   if(called)return;
   const row=Math.floor(visibleIndex++/6);
-  (rows[row]??=[]).push(discard(p,index===river.length-1,riichi));
+  (rows[row]??=[]).push(discard(p,replay||index===river.length-1,riichi));
  });
  return rows.map(row=>'<div class="river-row">'+row.join('')+'</div>').join('');
 }
-function discard(p,latest,riichi){
- const kind=p.includes('_')?'摸切':'手切';
- return '<div class="discard'+(riichi?' riichi-discard':'')+(latest?(p.includes('_')?' draw':' cut'):'')+'" title="'+tileName(p)+(latest?' · '+kind:'')+(riichi?' · 立直':'')+'"><div class="front">'+tile(p)+'</div>'+(latest?'<span>'+kind+'</span>':'')+'</div>';
+function discard(p,marked,riichi){
+ const fromDraw=p.includes('_');
+ const kind=fromDraw?'摸切':'手切';
+ return '<div class="discard'+(riichi?' riichi-discard':'')+(marked&&fromDraw?' tsumogiri':'')+'" title="'+tileName(p)+(marked?' · '+kind:'')+(riichi?' · 立直':'')+'"><div class="front">'+tile(p)+'</div></div>';
 }
 let audioCtx, muted=localStorage.getItem('quiet')==='1', seen=null;
 function soundLabel(){el('sound').textContent=muted?'音效：关':'音效：开';el('sound').setAttribute('aria-pressed',String(!muted))}
@@ -178,11 +187,11 @@ el('play').addEventListener('click',event=>{
  comparedSeat=comparedSeat===offset?0:offset;
  showScoreDifference(st.table);
 });
-function tableMarkup(t,h,reveal=false,interactive=true){
+function tableMarkup(t,h,{reveal=false,interactive=true,replay=false}={}){
  function station(offset){
   const i=(t.l+offset)%4,p=t.players[i];
-  const rack=offset?'<div class="rack">'+(reveal ? tiles(p.hand).map(tile).join('') : Array.from({length:p.count},()=>tile('back')).join(''))+'</div>':'<div class="hand">'+h+'</div>';
-  return '<section class="station" data-seat="'+offset+'" style="--bearing:'+(-90*offset)+'deg">'+(i===0?'<span class="dealer-marker" role="img" aria-label="东家，庄家">东</span>':'')+rack+'<div class="mgroup">'+p.melds.map(meldGroup).join('')+'</div><div class="pool" style="--river-rows:'+Math.max(1,Math.ceil(p.river.filter(tile=>!/[+=-]$/.test(tile)).length/6))+'">'+riverMarkup(p.river)+'</div></section>';
+  const rack=offset?'<div class="rack'+(reveal?' revealed-rack':'')+'">'+(reveal ? tiles(p.hand).map(tile).join('') : Array.from({length:p.count},()=>tile('back')).join(''))+'</div>':'<div class="hand">'+h+'</div>';
+  return '<section class="station" data-seat="'+offset+'" style="--bearing:'+(-90*offset)+'deg">'+(i===0?'<span class="dealer-marker" role="img" aria-label="东家，庄家">东</span>':'')+rack+'<div class="mgroup">'+p.melds.map(meldGroup).join('')+'</div><div class="pool" style="--river-rows:'+Math.max(1,Math.ceil(p.river.filter(tile=>!/[+=-]$/.test(tile)).length/6))+'">'+riverMarkup(p.river,replay)+'</div></section>';
  }
  return scoreStrip(t,interactive)+'<div class="viewport3d"><div class="camera"><div id="desk" class="table3d">'+[0,1,2,3].map(station).join('')+'<div class="hub"><b>'+t.round+'　'+t.honba+' 本场</b><p>余 '+t.left+' 枚 · <span id="pot">供托 '+t.sticks+(t.sticks?' <i class="stick"></i>':'')+'</span></p>'+deadWall(t)+'</div></div></div></div><p class="mobile-dora">表宝指示牌 '+t.dora.map(tileName).join('、')+'</p>';
 }
@@ -210,9 +219,25 @@ function fitTable(){
  const zoom=Math.min(v.clientWidth/1015,1.05);v.style.height=(zoom*846)+'px';v.style.setProperty('--zoom',zoom);
 }
 window.addEventListener('resize',fitTable);
+function updateTableArea(container,markup){
+ const previous=container.querySelector('.viewport3d');
+ const x=window.scrollX,y=window.scrollY;
+ const left=previous?.scrollLeft,top=previous?.scrollTop;
+ container.innerHTML=markup;
+ fitTable();
+ const viewport=container.querySelector('.viewport3d');
+ if(previous&&viewport)viewport.scrollTo(left,top);
+ if(window.scrollX!==x||window.scrollY!==y)window.scrollTo(x,y);
+}
 function render(){
- if(!st||!el('replay').hidden)return;
- el('lobby').hidden=true;el('room').hidden=false;el('title').textContent='房间 '+st.code;
+ if(!st||!el('replay').hidden||!el('leaderboard').hidden)return;
+ el('lobby').hidden=true;el('room').hidden=false;el('title').textContent=st.practice?'本机练习':'房间 '+(st.groupCode||st.code);
+ const copy=el('copy');
+ if(copy.dataset.room!==st.code){
+  copy.dataset.room=st.code;
+  copy.textContent=st.groupCode?'复制房间号':'复制邀请';
+ }
+ copy.hidden=Boolean(st.practice);
  const dest=el('play'),t=st.table;
  const focusedScore=document.activeElement?.dataset.compare;
  if(!t)comparedSeat=0;
@@ -233,21 +258,71 @@ function render(){
  opts.forEach((x,i)=>{if(!used.has(i)&&!x.startsWith('宣言 '))actions.push('<button class="'+(/^(吃|碰|杠|立直|自摸|荣和|公开听牌)/.test(x)?'claim':'')+'" data-i="'+i+'">'+optionContent(x)+'</button>')});
  const result=st.result, introducing=pendingWin(t,result);
  if(introducing){
-  if(!el('play').querySelector('.win-intro'))dest.innerHTML=tableMarkup(t,h,false,false)+winPrompt(t,result);
-  fitTable();playEffects(t);return;
+  if(!dest.querySelector('.win-intro'))updateTableArea(dest,tableMarkup(t,h,{interactive:false})+winPrompt(t,result));
+  playEffects(t);return;
  }
- dest.innerHTML=result?(result.hupai?winScreen(t,result):drawScreen(t,result)):tableMarkup(t,h)+'<div class="touchhand hand">'+h+'</div><p>'+(declaring?'请选择立直宣言牌':t.drawReveal?(opts.length?'荒牌流局 · 公开手牌才能按听牌结算':'荒牌流局 · 等待听牌者选择是否公开'):opts.length?(opts.some(x=>x.startsWith('打 '))?'请选择要打出的牌':'请选择操作'):'等待其他雀士')+'</p><div class="actions">'+actions.join('')+'</div>';
- fitTable();playEffects(t);
+ updateTableArea(dest,result?(result.hupai?winScreen(t,result):drawScreen(t,result)):tableMarkup(t,h)+'<div class="touchhand hand">'+h+'</div><p>'+(declaring?'请选择立直宣言牌':t.drawReveal?(opts.length?'荒牌流局 · 公开手牌才能按听牌结算':'荒牌流局 · 等待听牌者选择是否公开'):opts.length?(opts.some(x=>x.startsWith('打 '))?'请选择要打出的牌':'请选择操作'):'等待其他雀士')+'</p><div class="actions">'+actions.join('')+'</div>');
+ playEffects(t);
  if(!result){
   showScoreDifference(t);
   if(focusedScore)dest.querySelector('[data-compare="'+focusedScore+'"]')?.focus({preventScroll:true});
  }
  dest.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>call('act',{nonce:st.nonce,i:+b.dataset.i}));
 }
-el('create').onclick=()=>call('create');el('join').onclick=()=>call('join',{code:el('code').value.trim()});
-el('copy').onclick=async()=>{const invitation=new URL(location.href);if(st.lan&&['localhost','127.0.0.1'].includes(location.hostname))invitation.hostname=st.lan;invitation.search='?room='+st.code;const url=invitation.href;try{await navigator.clipboard.writeText(url);el('copy').textContent='邀请已复制'}catch{prompt('复制房间邀请',url)}};
+el('create').onclick=async()=>{
+ const button=el('create');
+ if(!profile||button.disabled)return;
+ if(!desktop?.network)return call('create');
+ button.disabled=true;
+ el('error').textContent='';
+ try{
+  const mode=await desktopRequest('host');
+  if(mode)await call('create',{practice:mode==='practice'});
+ }catch(error){el('error').textContent=error.message}
+ finally{button.disabled=false}
+};
+el('join-form').onsubmit=async event=>{
+ event.preventDefault();
+ const button=el('join'),code=el('code').value.trim();
+ if(!profile||!code||button.disabled)return;
+ if(!desktop?.network||/^[0-9]{6}$/.test(code))return call('join',{code});
+ button.disabled=true;
+ el('error').textContent='';
+ try{
+  const ownRoom=await desktopRequest('join',{Text:code});
+  if(ownRoom&&profile)await call('join',{code:ownRoom});
+ }catch(error){el('error').textContent=error.message}
+ finally{button.disabled=false}
+};
+el('copy').onclick=async()=>{
+ const invitation=new URL('/',location.href);
+ if(st.lan&&['localhost','127.0.0.1'].includes(location.hostname))invitation.hostname=st.lan;
+ invitation.searchParams.set('room',st.code);
+ const share=st.groupCode||invitation.href;
+ const copied=st.groupCode?'房间号已复制':'邀请已复制';
+ try{
+  if(desktop)await desktopRequest('copy',{Text:share});
+  else if(navigator.clipboard)await navigator.clipboard.writeText(share);
+  else{
+   const text=document.createElement('textarea'),button=el('copy');
+   text.style.cssText='position:fixed;left:0;top:0;opacity:0;pointer-events:none';
+   text.value=share;
+   document.body.append(text);
+   try{
+    text.focus({preventScroll:true});
+    text.select();
+    if(!document.execCommand('copy'))throw Error();
+   }finally{text.remove();button.focus({preventScroll:true})}
+  }
+  el('error').textContent='';
+  el('copy').textContent=copied;
+ }catch{
+  el('error').textContent='剪贴板暂不可用，请选中标题中的房间号手动复制。';
+ }
+};
 document.addEventListener('DOMContentLoaded',()=>{
- restoreAccount();
+ if(forceLogin)showAccountGate();
+ else restoreAccount();
  setInterval(()=>{if(profile&&auth.token&&!st?.final)call('state')},400);
 });
 </script><script src="/account-ui.js"></script><script src="/replay.js"></script><script src="/meshes.js"></script></html>

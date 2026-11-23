@@ -34,12 +34,13 @@
   uniform vec4 origin, axisX, axisY, axisZ;
   uniform vec3 dimensions;
   uniform vec3 light;
+  uniform float brightness;
   varying vec3 shaded;
   void main() {
    vec3 tile = position / dimensions + .5;
    gl_Position = origin + axisX * tile.x + axisY * tile.y + axisZ * tile.z;
    vec3 linear = color.rgb * (.73 + .27 * max(dot(normalize(normal), light), 0.));
-   shaded = pow(linear, vec3(1. / 2.2));
+   shaded = pow(linear, vec3(1. / 2.2)) * brightness;
   }`], [gl.FRAGMENT_SHADER, `
   precision mediump float;
   varying vec3 shaded;
@@ -55,7 +56,8 @@
  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
  gl.useProgram(program);
  gl.uniform3fv(gl.getUniformLocation(program,'dimensions'), [dimensions[0], -dimensions[1], dimensions[2]]);
- const [origin, axisX, axisY, axisZ, light] = ['origin','axisX','axisY','axisZ','light'].map(name => gl.getUniformLocation(program,name));
+ const [origin, axisX, axisY, axisZ, light, brightness] = ['origin','axisX','axisY','axisZ','light','brightness'].map(name => gl.getUniformLocation(program,name));
+ const dimBrightness = Number(getComputedStyle(document.documentElement).getPropertyValue('--tsumogiri-brightness'));
  const attributes = ['position','normal','color'].map(name => gl.getAttribLocation(program,name));
  attributes.forEach(index => gl.enableVertexAttribArray(index));
  gl.enable(gl.DEPTH_TEST);
@@ -89,6 +91,7 @@
   gl.uniform4fv(axisY, subtract(projected[2], start));
   gl.uniform4fv(axisZ, subtract(projected[4], start));
   gl.uniform3fv(light, direction);
+  gl.uniform1f(brightness, item.dimmed ? dimBrightness : 1);
   const mesh = item.mesh;
   bind(0, mesh.attributes.POSITION);
   bind(1, mesh.attributes.NORMAL);
@@ -184,7 +187,7 @@
    const pins = Array.from(tile.querySelectorAll('.pin'));
    if (pins.length !== 8) continue;
    const target = camera?.contains(tile) ? table : controls;
-   target.push({mesh,pins,points:readPins(pins)});
+   target.push({mesh,pins,points:readPins(pins),dimmed:tile.closest('.tsumogiri')!==null});
   }
   drawTable(table,camera,width,height,dpr);
   for (const item of controls) drawInterfaceTile(item,width,height);
