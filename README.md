@@ -4,9 +4,9 @@
 
 ## 下载试玩
 
-从 [Releases](https://github.com/v0okashu/riichi-table/releases/latest) 下载 Windows x64 试玩包，完整解压并双击 **Start.cmd**。在浏览器注册账号、设置昵称，再创建房间并点击「开始半庄」。空位由电脑补齐。
+从 [Releases](https://github.com/v0okashu/riichi-table/releases/latest) 下载 Windows x64 的单文件 EXE，双击打开牌桌。注册账号并设置昵称后，创建房间并点击「开始半庄」。空位由电脑补齐。
 
-试玩包内置 Node.js，支持 Windows 10 / 11 x64。账号、段位和完整牌谱保存在运行牌桌的电脑上。关闭启动窗口即可退出。
+桌面版内置 Node.js，并使用系统的 Microsoft Edge WebView2 Runtime。账号、段位和牌谱保存在当前 Windows 用户的本地应用数据目录 `WangWangRiichi` 中。
 
 ## 从源码运行
 

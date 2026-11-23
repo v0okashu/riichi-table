@@ -111,7 +111,8 @@ function state(r,s){
  nonce:s.pending?.nonce,options:s.pending?.options.map(o=>o.label)||[]};
 }
 const page=fs.readFileSync(path.join(__dirname,'index.html')); const tilesScript=fs.readFileSync(path.join(__dirname,'tiles.js'));
-http.createServer(async(req,res)=>{
+const desktopMode=process.argv.includes('--desktop');
+const gameServer=http.createServer(async(req,res)=>{
  try{
  if(req.method==='GET'&&req.url==='/tiles.glb'){
   const zipped=/\bgzip\b/.test(req.headers['accept-encoding']||'');
@@ -189,5 +190,15 @@ http.createServer(async(req,res)=>{
  }
  res.setHeader('Content-Type','application/json');res.end(JSON.stringify({...state(r,s),token:s.token}));
  }catch(e){res.writeHead(400);res.end(JSON.stringify({error:e.message}))}
-}).listen(Number(process.env.PORT)||8787,'0.0.0.0');
+});
 
+if(desktopMode){
+ gameServer.listen(0,'127.0.0.1',()=>{
+  console.log('http://127.0.0.1:'+gameServer.address().port+'/');
+ });
+ // The desktop host keeps the pipe open while its window is running.
+ process.stdin.resume();
+ process.stdin.once('end',()=>gameServer.close(()=>process.exit(0)));
+}else{
+ gameServer.listen(Number(process.env.PORT)||8787,'0.0.0.0');
+}
