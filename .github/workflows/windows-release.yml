@@ -1,0 +1,45 @@
+name: Build Windows release asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release draft tag
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ inputs.tag }}
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.18.0'
+      - name: Build and check the package
+        shell: pwsh
+        run: |
+          node verify-drills.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path dist | Out-Null
+          ./desktop/build.ps1 -Output ./dist/wangwang-riichi-windows-x64.exe
+          Get-FileHash -LiteralPath ./dist/wangwang-riichi-windows-x64.exe -Algorithm SHA256
+      - name: Upload the EXE to the draft
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          $state = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft --jq .isDraft
+          if ($LASTEXITCODE -or $state -ne 'true') { throw 'A matching release draft is required.' }
+          gh release upload $env:RELEASE_TAG ./dist/wangwang-riichi-windows-x64.exe --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
