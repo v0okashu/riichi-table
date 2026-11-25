@@ -154,6 +154,7 @@ module.exports = class Game {
     do_sync() {
 
         this._sync  = true;
+        this._auto_draw_reveal = true;
 
         this.kaiju();
 
@@ -805,7 +806,7 @@ module.exports = class Game {
 
         if (! model.shan.paishu) {
             const enabled = this._rule['ノーテン宣言あり'];
-            if (this._sync) {
+            if (this._auto_draw_reveal) {
                 const declarations = model.shoupai.map((_, seat) =>
                     this.get_reply(seat).daopai ? '-' : '');
                 return this.pingju('', declarations);

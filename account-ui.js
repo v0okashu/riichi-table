@@ -28,10 +28,6 @@ async function requestAccountData(op, fields={}){
  return data;
 }
 
-async function accountRequest(op, fields={}){
- return (await requestAccountData(op,fields)).profile;
-}
-
 function signedPoints(points){
  return (points>0?'+':'')+points.toFixed(1)+' pt';
 }
@@ -47,15 +43,13 @@ function rankSummary(current,result){
 
 function showAccountGate(){
  profile=null;
- st=null;
- last='';
- auth={};
- sessionStorage.removeItem('table');
- el('room').hidden=true;
+ resetTable();
  el('replay').hidden=true;
  el('replay').replaceChildren();
  el('leaderboard').hidden=true;
  el('leaderboard-content').replaceChildren();
+ el('drill').hidden=true;
+ el('drill').replaceChildren();
  el('lobby').hidden=true;
  el('account-gate').hidden=false;
  el('remember-login').hidden=!desktop?.remember;
@@ -63,25 +57,35 @@ function showAccountGate(){
  if(desktop?.remember)readSavedLogin();
 }
 
-function acceptProfile(current){
+function rankRulesMarkup(rules){
+ if(!rules?.length)return '';
+ const rows=rules.map(({name,promoteAt,demoteBelow})=>'<tr><th scope="row">'+esc(name)+'</th><td>'
+  +(promoteAt??'—')+'</td><td>'+(demoteBelow??'—')+'</td></tr>').join('');
+ return '<details class="rank-rules"><summary>段位规则</summary>'
+  +'<p>本段打满 10 个完整半庄后，最近 10 场合计达到晋级线则晋级，低于降级线则降级。升降后从第 1 场重新累计。</p>'
+  +'<table><thead><tr><th scope="col">段位</th><th scope="col">晋级线（pt）</th><th scope="col">降级线（pt）</th></tr></thead><tbody>'
+  +rows+'</tbody></table></details>';
+}
+
+function acceptProfile(current,rankRules){
  profile=current;
  el('account-gate').hidden=true;
  el('lobby').hidden=false;
  el('account-profile').innerHTML='<div class="account-identity"><b>'+esc(current.nickname)+'</b><button type="button" id="logout" class="secondary">退出登录</button></div>'
-  +rankSummary(current)
-  +'<details class="rank-rules"><summary>段位规则</summary><p>小小狗 / 小狗 / 狗狗的 / 狗完了 / 狗王 / 最狗位</p><p>本段最近 10 个完整半庄合计达到 200 pt 晋级，低于 −200 pt 降级。升降后从第 1 场重新累计。</p></details>';
+  +rankSummary(current)+rankRulesMarkup(rankRules);
  el('logout').onclick=async()=>{
-  try{await accountRequest('logout');showAccountGate();}
+  try{await requestAccountData('logout');showAccountGate();}
   catch(error){el('error').textContent=error.message;}
  };
  if(auth.token)call('state');
- else if(invited)call('join',{code:invited});
+ else if(invited)call(parameters.has('resume')?'resume':'join',{code:invited});
+ else if(desktop?.network)call('resume');
 }
 
 async function restoreAccount(){
  try{
-  const current=await accountRequest('me');
-  if(current)acceptProfile(current);
+  const {profile:current,rankRules,hasLanRoom}=await requestAccountData('me');
+  if(current&&(!desktopStartup||hasLanRoom))acceptProfile(current,rankRules);
   else showAccountGate();
  }catch(error){
   showAccountGate();
@@ -173,7 +177,7 @@ el('account-form').onsubmit=async event=>{
  submit.disabled=true;
  try{
   const fields=Object.fromEntries(new FormData(form));
-  const current=await accountRequest(accountMode,fields);
+  const {profile:current,rankRules}=await requestAccountData(accountMode,fields);
   let preferenceError='';
   if(desktop?.remember){
    const login=el('remember-account').checked?{
@@ -186,7 +190,7 @@ el('account-form').onsubmit=async event=>{
   form.reset();
   setPasswordVisible(false);
   el('error').textContent=preferenceError;
-  acceptProfile(current);
+  acceptProfile(current,rankRules);
  }catch(error){el('error').textContent=error.message;}
  finally{submit.disabled=false;}
 };

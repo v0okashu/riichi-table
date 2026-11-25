@@ -5,7 +5,14 @@ const {gzipSync,gunzipSync} = require('node:zlib');
 const { promisify } = require('node:util');
 const { DatabaseSync } = require('node:sqlite');
 
-const ranks = ['小小狗', '小狗', '狗狗的', '狗完了', '狗王', '最狗位'];
+const rankRules = [
+ {name:'小小狗', promoteAt:0, demoteBelow:null},
+ {name:'小狗', promoteAt:50, demoteBelow:-100},
+ {name:'狗狗的', promoteAt:100, demoteBelow:-150},
+ {name:'狗完了', promoteAt:150, demoteBelow:-180},
+ {name:'狗王', promoteAt:200, demoteBelow:-180},
+ {name:'最狗位', promoteAt:null, demoteBelow:-150}
+];
 const windowSize = 10;
 const sessionLifetime = 30 * 24 * 60 * 60;
 const scrypt = promisify(crypto.scrypt);
@@ -38,6 +45,10 @@ function openAccounts(file) {
    replay BLOB NOT NULL
   );
   CREATE INDEX IF NOT EXISTS ranked_recent ON ranked_matches(account_id, stage, seq DESC);
+  CREATE TABLE IF NOT EXISTS drill_progress (
+   account_id INTEGER NOT NULL REFERENCES accounts(id), mode TEXT NOT NULL, solved INTEGER NOT NULL,
+   PRIMARY KEY(account_id,mode)
+  );
  `);
 
  const byId = db.prepare('SELECT id, nickname, rank, stage FROM accounts WHERE id=?');
@@ -67,6 +78,9 @@ function openAccounts(file) {
   WHERE r.account_id=? ORDER BY m.played_at DESC`);
  const archiveById = db.prepare(`SELECT m.* FROM ranked_matches r JOIN completed_matches m ON m.id=r.match_id WHERE r.account_id=? AND m.id=?`);
  const setRank = db.prepare('UPDATE accounts SET rank=?, stage=stage+1 WHERE id=?');
+ const readDrills = db.prepare('SELECT mode,solved FROM drill_progress WHERE account_id=?');
+ const saveDrill = db.prepare(`INSERT INTO drill_progress VALUES(?,?,?)
+  ON CONFLICT(account_id,mode) DO UPDATE SET solved=MAX(solved,excluded.solved)`);
 
  function profile(id) {
   return accountProfile(byId.get(id));
@@ -75,9 +89,9 @@ function openAccounts(file) {
  function accountProfile(account) {
   const {id}=account;
   const recent = history.get(id,account.stage,windowSize);
-  return {id,nickname:account.nickname,rank:ranks[account.rank],recentCount:recent.count,
+  return {id,nickname:account.nickname,rank:rankRules[account.rank].name,recentCount:recent.count,
    recentPoints:recent.points/10,
-   ...(account.rank===ranks.length-1?{topPoints:stageTotal.get(id,account.stage).points/10}:{})};
+   ...(account.rank===rankRules.length-1?{topPoints:stageTotal.get(id,account.stage).points/10}:{})};
  }
 
  function leaderboard(viewerId) {
@@ -152,15 +166,16 @@ function openAccounts(file) {
     JSON.stringify(archive.record.player),JSON.stringify(archive.final),archive.record.log.length,packed);
    for(const {id,points} of participants){
     const {rank,stage} = byId.get(id);
+    const {name,promoteAt,demoteBelow} = rankRules[rank];
     const inserted = insertResult.run(id,matchId,stage,Math.round(points*10));
     const recent = history.get(id,stage,windowSize);
     let next = rank;
     if(inserted.changes && recent.count===windowSize){
-     if(recent.points>=2000 && rank<ranks.length-1)next++;
-     if(recent.points < -2000 && rank>0)next--;
+     if(promoteAt!==null && recent.points>=promoteAt*10)next++;
+     else if(demoteBelow!==null && recent.points<demoteBelow*10)next--;
     }
     if(next!==rank)setRank.run(next,id);
-    changes[id]={profile:profile(id),previousRank:ranks[rank],windowPoints:recent.points/10};
+    changes[id]={profile:profile(id),previousRank:name,windowPoints:recent.points/10};
    }
    db.exec('COMMIT');
    return changes;
@@ -170,7 +185,14 @@ function openAccounts(file) {
   }
  }
 
- return {authenticate,accountId,logout,profile,leaderboard,applyMatch,matches,savedMatch};
+ function drillProgress(id){
+  return Object.fromEntries(readDrills.all(id).map(({mode,solved})=>[mode,solved]));
+ }
+ function solveDrill(id,mode,solved){
+  saveDrill.run(id,mode,solved);
+ }
+
+ return {authenticate,accountId,logout,profile,leaderboard,applyMatch,matches,savedMatch,drillProgress,solveDrill};
 }
 
-module.exports = {openAccounts,sessionLifetime};
+module.exports = {openAccounts,sessionLifetime,rankRules};

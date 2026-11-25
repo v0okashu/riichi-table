@@ -60,7 +60,28 @@ async function verify() {
    assert.deepEqual(playback,replay);
    const stranger=await request({op:'register',username:'qa_'+suffix+'_x',password:'test-account-'+suffix,nickname:'游客测试'});
    assert.equal((await request({op:'savedReplay',matchId:replay.id},stranger.cookie)).status,404);
-   console.log('完整半庄、账号隔离、段位仅结算一次及 136 张回放通过', {steps,rounds:replay.rounds.length});
+   const returned=await Promise.all(seats.slice(0,3).map(seat=>send(seat,'returnRoom',{matchId:replay.id})));
+   for(const [i,room] of returned.entries()){
+    assert.equal(room.code,code);
+    assert.equal(room.id,i);
+    assert.equal(room.token,seats[i].token);
+    assert.equal(room.started,false);
+    assert.equal(room.final,undefined);
+    assert.deepEqual(room.names,states[0].names);
+   }
+   assert.deepEqual((await send(seats[3],'state')).final,states[0].final);
+   assert.equal((await request({op:'start',code,token:seats[1].token},seats[1].cookie)).status,400);
+   await send(seats[0],'start');
+   for(const [i,seat] of seats.entries()){
+    const next=await send(seat,'state');
+    assert.equal(next.code,code);
+    assert.equal(next.id,i);
+    assert.equal(next.started,true);
+    assert.equal(next.final,undefined);
+    assert(next.matchId);
+    assert.notEqual(next.matchId,replay.id);
+   }
+   console.log('完整半庄、账号隔离、段位结算、136 张回放及原房间再开局通过', {steps,rounds:replay.rounds.length});
    return;
   }
   for(const [i,state] of states.entries()){

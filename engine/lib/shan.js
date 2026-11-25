@@ -14,7 +14,7 @@ module.exports = class Shan {
                         : s + (n % 9 + 1);
     }
 
-    constructor(rule) {
+    constructor(rule, savedWall) {
 
         this._rule = rule;
         let hongpai = rule['赤牌'];
@@ -29,8 +29,8 @@ module.exports = class Shan {
             }
         }
 
-        this._pai = [];
-        while (pai.length) {
+        this._pai = savedWall ? savedWall.slice() : [];
+        while (!savedWall && pai.length) {
             this._pai.push(pai.splice(Math.random()*pai.length, 1)[0]);
         }
 

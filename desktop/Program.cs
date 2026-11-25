@@ -129,10 +129,12 @@ internal sealed class GameWindow : Form
     private readonly Panel surface;
     private readonly Label status;
     private readonly LinkLabel back;
+    private readonly System.Windows.Forms.Timer reconnect = new System.Windows.Forms.Timer { Interval = 3000 };
     private readonly string desktopControl = Guid.NewGuid().ToString("N");
     private readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 4096 };
     private WebView2 view;
     private Process server;
+    private FileStream profileLock;
     private Uri homeAddress;
     private Uri currentAddress;
     private IPAddress groupAddress;
@@ -165,7 +167,13 @@ internal sealed class GameWindow : Form
             VisitedLinkColor = Color.FromArgb(238, 219, 165), Margin = new Padding(12, 6, 0, 6),
             Font = new Font("Microsoft YaHei UI", 9), Visible = false
         };
-        back.LinkClicked += (sender, args) => Navigate(homeAddress);
+        back.LinkClicked += (sender, args) =>
+        {
+            try { File.Delete(RoomFile); }
+            catch (IOException) { }
+            Navigate(homeAddress);
+        };
+        reconnect.Tick += (sender, args) => Navigate(currentAddress);
         layout.Controls.Add(back, 0, 0);
     }
 
@@ -175,6 +183,7 @@ internal sealed class GameWindow : Form
         try
         {
             CoreWebView2Environment.GetAvailableBrowserVersionString();
+            if (serverAddress == null) LockLocalProfile();
             homeAddress = serverAddress ?? await StartServer();
             if (IsDisposed) return;
 
@@ -217,13 +226,23 @@ internal sealed class GameWindow : Form
             {
                 if (navigation.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled) return;
                 bool opened = navigation.IsSuccess && navigation.HttpStatusCode < 400;
-                if (!opened) status.Text = "无法打开牌桌 " + currentAddress.Authority + "。";
+                if (!opened)
+                {
+                    if (back.Visible && ReadRoom() != null)
+                    {
+                        status.Text = "正在等待房主恢复牌桌…";
+                        reconnect.Start();
+                    }
+                    else status.Text = "无法打开牌桌 " + currentAddress.Authority + "。";
+                }
                 view.Visible = opened;
                 status.Visible = !opened;
                 if (opened) view.BringToFront();
             };
             web.WebMessageReceived += ReceiveMessage;
-            Navigate(new UriBuilder(homeAddress) { Query = "login=1" }.Uri);
+            Uri room = serverAddress == null ? ReadRoom() : null;
+            Navigate(room != null ? new UriBuilder(room) { Query = room.Query.Substring(1) + "&resume=1" }.Uri
+                : new UriBuilder(homeAddress) { Query = serverAddress == null ? "startup=1" : "login=1" }.Uri);
         }
         catch (WebView2RuntimeNotFoundException)
         {
@@ -244,13 +263,14 @@ internal sealed class GameWindow : Form
 
     private void Navigate(Uri address)
     {
+        reconnect.Stop();
         currentAddress = address;
         back.Visible = Origin(address) != Origin(homeAddress);
         status.Text = "正在连接牌桌…";
         status.Visible = true;
         view.Visible = false;
         status.BringToFront();
-        view.Source = address;
+        view.CoreWebView2.Navigate(address.AbsoluteUri);
     }
 
     private async void ReceiveMessage(object sender, CoreWebView2WebMessageReceivedEventArgs args)
@@ -284,6 +304,13 @@ internal sealed class GameWindow : Form
                     break;
                 case "saveLogin":
                     if (trusted) SaveLogin(message.Login);
+                    break;
+                case "rememberRoom":
+                    if (!trusted && serverAddress == null) SaveRoom(source, message.Text);
+                    break;
+                case "forgetRoom":
+                    Uri room = ReadRoom();
+                    if (!trusted && room != null && Origin(room) == Origin(source)) File.Delete(RoomFile);
                     break;
                 case "host":
                     if (!trusted || serverAddress != null) return;
@@ -324,19 +351,55 @@ internal sealed class GameWindow : Form
         if (destination != null && error == null) Navigate(destination);
     }
 
-    private string LoginFile
+    private string PreferenceDirectory
     {
         get
         {
             string folder = Environment.GetEnvironmentVariable("RIICHI_DATA_DIR");
-            if (String.IsNullOrWhiteSpace(folder)) folder = Program.DataDirectory;
+            return String.IsNullOrWhiteSpace(folder) ? Program.DataDirectory : folder;
+        }
+    }
+
+    private string RoomFile { get { return Path.Combine(PreferenceDirectory, "last-lan-room.txt"); } }
+
+    private void LockLocalProfile()
+    {
+        Directory.CreateDirectory(PreferenceDirectory);
+        try { profileLock = File.Open(Path.Combine(PreferenceDirectory, "network-host.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        catch (IOException error) { throw new InvalidOperationException("本机牌桌已在另一窗口运行，请切回该窗口。", error); }
+    }
+
+    private Uri ReadRoom()
+    {
+        try
+        {
+            Uri room;
+            if (File.Exists(RoomFile) && NetworkMenu.TryInvitation(File.ReadAllText(RoomFile), out room)
+                && room.Query.StartsWith("?room=", StringComparison.Ordinal)) return room;
+        }
+        catch (IOException) { }
+        return null;
+    }
+
+    private void SaveRoom(Uri source, string code)
+    {
+        if (code == null || !Regex.IsMatch(code, @"\A[0-9]{6}\z")) return;
+        Uri room;
+        string url = new UriBuilder(source) { Path = "/", Query = "room=" + code }.Uri.AbsoluteUri;
+        if (NetworkMenu.TryInvitation(url, out room)) WritePreference(RoomFile, Encoding.UTF8.GetBytes(room.AbsoluteUri));
+    }
+
+    private string LoginFile
+    {
+        get
+        {
             string label = "local";
             if (serverAddress != null)
             {
                 using (var sha = SHA256.Create())
                     label = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(Origin(serverAddress)))).Replace("-", "");
             }
-            return Path.Combine(folder, "remembered-login-" + label + ".bin");
+            return Path.Combine(PreferenceDirectory, "remembered-login-" + label + ".bin");
         }
     }
 
@@ -365,6 +428,11 @@ internal sealed class GameWindow : Form
         if (login.Username.Length > 24 || (login.Password != null && login.Password.Length > 128))
             throw new ArgumentException("无法保存登录设置。");
         byte[] bytes = ProtectedData.Protect(Encoding.UTF8.GetBytes(json.Serialize(login)), null, DataProtectionScope.CurrentUser);
+        WritePreference(file, bytes);
+    }
+
+    private static void WritePreference(string file, byte[] bytes)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(file));
         string temporary = file + "." + Guid.NewGuid().ToString("N");
         try
@@ -436,8 +504,10 @@ internal sealed class GameWindow : Form
 
     protected override void OnFormClosed(FormClosedEventArgs args)
     {
+        reconnect.Dispose();
         if (view != null) view.Dispose();
         StopServer();
+        if (profileLock != null) profileLock.Dispose();
         base.OnFormClosed(args);
     }
 
