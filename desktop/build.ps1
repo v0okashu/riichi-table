@@ -71,8 +71,11 @@ try {
     Compress-Archive -Path (Join-Path $payload '*') -DestinationPath $package -CompressionLevel Optimal
     $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     $references = $assemblies | ForEach-Object { '/reference:' + (Join-Path $payload $_) }
+    $appIcon = Join-Path $PSScriptRoot 'app.ico'
     $compile = @('/nologo', '/target:winexe', '/platform:x64', '/optimize+',
         ('/win32manifest:' + (Join-Path $PSScriptRoot 'app.manifest')),
+        ('/win32icon:' + $appIcon),
+        ('/resource:' + $appIcon + ',WangWangRiichi.App.ico'),
         ('/out:' + $outputPath), ('/resource:' + $package + ',WangWangRiichi.Game.zip'),
         '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll',
         '/reference:System.IO.Compression.dll', '/reference:System.IO.Compression.FileSystem.dll',

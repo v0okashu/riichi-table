@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict');
 const M=require('./engine');
-const {analyze,grade,tileCounts,tileTypes,modes}=require('./drills');
+const {analyze,grade,tileCounts,tileTypes,modes,drillRequest}=require('./drills');
 const bank=require('./drill-bank.json');
 
 const code=tile=>tile[1]+tile[0];
@@ -13,6 +13,19 @@ const draws=(hand,seen,goal)=>tileTypes.flatMap(tile=>{
 
 const paymentCases=new Map();
 for(const mode of modes){
+ const unlocked={drillProgress:()=>({[mode]:200}),isDrillFavorite:()=>false};
+ const ordered=bank[mode].map((_,index)=>drillRequest(unlocked,1,{op:'drillQuestion',mode,index}));
+ const difficulty=ordered.map(entry=>entry.difficulty);
+ assert.deepEqual(difficulty.slice(0,5),[1,2,3,3,5]);
+ assert.deepEqual(difficulty.slice(45,50),[3,3,4,5,6]);
+ assert.equal(difficulty.at(-1),10);
+ assert.equal(new Set(ordered.map(entry=>entry.question)).size,200);
+ const ranks=ordered.map(entry=>bank[mode].indexOf(entry.question));
+ for(let i=0;i<ranks.length;i++){
+  if(i%5)assert(ranks[i]>=ranks[i-1]&&difficulty[i]>=difficulty[i-1]);
+  if(i>=5)assert(ranks[i]>=ranks[i-5]&&difficulty[i]>=difficulty[i-5]);
+ }
+ for(let i=0;i<difficulty.length;i+=5)assert(difficulty[i]<difficulty[i+4]);
  const keys=new Set();
  assert.equal(bank[mode].length,200);
  for(const question of bank[mode]){
@@ -76,4 +89,4 @@ assert(bank.score.filter(question=>question.melds.length).length>20);
 assert.throws(()=>grade('flush',{tiles:['m1']},{tiles:'一'}));
 assert.throws(()=>grade('discard',{tiles:['z7']},{tiles:'8z'}));
 assert.throws(()=>grade('score',{numbers:[1,40,1300]},{numbers:['1','40符','1300']}));
-console.log('Verified 800 questions, tile availability, effective draws, all optimal discards and the four scoring formats.');
+console.log('Verified 800 questions, level difficulty, tile availability, effective draws, all optimal discards and the four scoring formats.');

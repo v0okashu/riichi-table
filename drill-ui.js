@@ -32,9 +32,33 @@ async function showDrills(){
   const status=await requestAccountData('drillProgress');
   if(!panel.isConnected)return;
   drillStatus=status;
-  panel.innerHTML='<p>每类 40 关，每关 5 题。答对本关 5 题即可解锁下一关，已通关的题可以重做。</p><div class="drill-modes">'
+  panel.innerHTML='<div class="drill-overview"><p>每类 40 关，每关 5 题。答对本关 5 题即可解锁下一关，已通关的题可以重做。</p><button type="button" class="secondary" id="drill-favorites">收藏题目</button></div><div class="drill-modes">'
    +Object.entries(drillModes).map(([mode,{name,prompt}])=>'<button type="button" class="secondary" data-drill-mode="'+mode+'"><strong>'+name+'</strong><span>'+prompt+'</span><small>'+(status.progress[mode]??0)+' / '+status.total+' 题</small></button>').join('')+'</div>';
   panel.querySelectorAll('[data-drill-mode]').forEach(button=>button.onclick=()=>showDrillLevels(button.dataset.drillMode));
+  el('drill-favorites').onclick=showDrillFavorites;
+ }catch(error){if(panel.isConnected)panel.textContent=error.message;}
+}
+
+function drillPosition(index){
+ const {levelSize}=drillStatus;
+ return '第 '+(Math.floor(index/levelSize)+1)+' 关 · 第 '+(index%levelSize+1)+' / '+levelSize+' 题';
+}
+
+async function showDrillFavorites(){
+ const panel=drillPage('收藏题目','返回题型',showDrills);
+ panel.textContent='正在读取收藏…';
+ try{
+  const {favorites}=await requestAccountData('drillFavorites');
+  if(!panel.isConnected)return;
+  if(!favorites.length){panel.textContent='点击题目右上角的星星，即可在这里重做。';return;}
+  favorites.sort((a,b)=>a.mode.localeCompare(b.mode)||a.index-b.index);
+  panel.innerHTML='<div class="drill-modes">'+favorites.map(({mode,index,difficulty},i)=>
+   '<button type="button" class="secondary" data-favorite="'+i+'"><strong>'+drillModes[mode].name+'</strong><small>'
+   +drillPosition(index)+' · 难度 '+difficulty+' / 10</small></button>').join('')+'</div>';
+  panel.querySelectorAll('[data-favorite]').forEach(button=>button.onclick=()=>{
+   const {mode,index}=favorites[Number(button.dataset.favorite)];
+   showDrillQuestion(mode,index,true);
+  });
  }catch(error){if(panel.isConnected)panel.textContent=error.message;}
 }
 
@@ -89,15 +113,35 @@ function drillSolution(mode,q,a){
  return best+'<details><summary>比较各切牌的进张枚数</summary><p>'+all+'</p></details>';
 }
 
-async function showDrillQuestion(mode,index){
+async function showDrillQuestion(mode,index,fromFavorites=false){
  const {levelSize,total}=drillStatus;
- const level=Math.floor(index/levelSize),inLevel=index%levelSize;
- const panel=drillPage(drillModes[mode].name,'返回关卡',()=>showDrillLevels(mode));
+ const inLevel=index%levelSize;
+ const panel=drillPage(drillModes[mode].name,fromFavorites?'返回收藏':'返回关卡',fromFavorites?showDrillFavorites:()=>showDrillLevels(mode));
  panel.textContent='正在读取题目…';
  try{
-  const {question}=await requestAccountData('drillQuestion',{mode,index});
+  const {question,difficulty,favorite}=await requestAccountData('drillQuestion',{mode,index});
   if(!panel.isConnected)return;
-  panel.innerHTML='<p class="drill-position">第 '+(level+1)+' 关 · 第 '+(inLevel+1)+' / '+levelSize+' 题</p>'+questionMarkup(mode,question);
+  panel.innerHTML='<div class="drill-question-head"><p class="drill-position">'+drillPosition(index)+' · 难度 '+difficulty+' / 10</p>'
+   +'<button type="button" class="drill-star"></button></div><p class="drill-favorite-message" role="status" hidden></p>'+questionMarkup(mode,question);
+  const star=panel.querySelector('.drill-star'), favoriteMessage=panel.querySelector('.drill-favorite-message');
+  function paintStar(saved){
+   star.textContent=saved?'★':'☆';
+   star.title='收藏题目';
+   star.setAttribute('aria-label','收藏题目');
+   star.setAttribute('aria-pressed',String(saved));
+  }
+  paintStar(favorite);
+  star.onclick=async()=>{
+   star.disabled=true;
+   favoriteMessage.hidden=true;
+   try{
+    const saved=await requestAccountData('drillFavorite',{mode,index,favorite:star.getAttribute('aria-pressed')!=='true'});
+    paintStar(saved.favorite);
+   }catch(error){
+    favoriteMessage.textContent=error.message;
+    favoriteMessage.hidden=false;
+   }finally{star.disabled=false;}
+  };
   const form=panel.querySelector('form'),submit=form.querySelector('button'),feedback=panel.querySelector('.drill-feedback');
   form.onsubmit=async event=>{
    event.preventDefault();
@@ -120,8 +164,8 @@ async function showDrillQuestion(mode,index){
     form.querySelectorAll('input').forEach(input=>input.disabled=true);
     const next=document.createElement('button');
     next.type='button';
-    next.textContent=last?(index+1<total?'进入下一关':'返回关卡'):'下一题';
-    next.onclick=()=>index+1<total?showDrillQuestion(mode,index+1):showDrillLevels(mode);
+    next.textContent=fromFavorites?'返回收藏':last?(index+1<total?'进入下一关':'返回关卡'):'下一题';
+    next.onclick=fromFavorites?showDrillFavorites:()=>index+1<total?showDrillQuestion(mode,index+1):showDrillLevels(mode);
     feedback.append(next);
     next.focus({preventScroll:true});
    }catch(error){if(panel.isConnected)feedback.textContent=error.message;}

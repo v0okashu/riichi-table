@@ -117,7 +117,9 @@ internal static class Program
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ShowGame(string runtime, Uri serverAddress)
     {
-        using (var window = new GameWindow(runtime, serverAddress))
+        using (Stream iconData = typeof(Program).Assembly.GetManifestResourceStream("WangWangRiichi.App.ico"))
+        using (var icon = new Icon(iconData))
+        using (var window = new GameWindow(runtime, serverAddress) { Icon = icon })
             Application.Run(window);
     }
 }
@@ -132,6 +134,8 @@ internal sealed class GameWindow : Form
     private readonly System.Windows.Forms.Timer reconnect = new System.Windows.Forms.Timer { Interval = 3000 };
     private readonly string desktopControl = Guid.NewGuid().ToString("N");
     private readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 4096 };
+    private readonly JavaScriptSerializer archiveJson = new JavaScriptSerializer { MaxJsonLength = 8 * 1024 * 1024 };
+    private readonly SemaphoreSlim groupSync = new SemaphoreSlim(1, 1);
     private WebView2 view;
     private Process server;
     private FileStream profileLock;
@@ -167,8 +171,15 @@ internal sealed class GameWindow : Form
             VisitedLinkColor = Color.FromArgb(238, 219, 165), Margin = new Padding(12, 6, 0, 6),
             Font = new Font("Microsoft YaHei UI", 9), Visible = false
         };
-        back.LinkClicked += (sender, args) =>
+        back.LinkClicked += async (sender, args) =>
         {
+            var room = ReadRoom();
+            if (room != null && Origin(room) == Origin(currentAddress))
+            {
+                try { await SyncGroup(room, room.Query.Substring(6)); }
+                catch { }
+                if (IsDisposed) return;
+            }
             try { File.Delete(RoomFile); }
             catch (IOException) { }
             Navigate(homeAddress);
@@ -202,7 +213,8 @@ internal sealed class GameWindow : Form
             web.Settings.IsPasswordAutosaveEnabled = false;
             await web.AddScriptToExecuteOnDocumentCreatedAsync(
                 "if(window===window.top){const trusted=location.origin===" + json.Serialize(Origin(homeAddress)) +
-                ";window.riichiDesktop={remember:trusted,network:trusted&&" + (serverAddress == null ? "true" : "false") + "};}");
+                ";const lan=" + (serverAddress == null ? "true" : "false") +
+                ";window.riichiDesktop={remember:trusted,network:trusted&&lan,group:!trusted&&lan};}");
             if (IsDisposed) return;
 
             web.NavigationStarting += (sender, navigation) =>
@@ -240,9 +252,8 @@ internal sealed class GameWindow : Form
                 if (opened) view.BringToFront();
             };
             web.WebMessageReceived += ReceiveMessage;
-            Uri room = serverAddress == null ? ReadRoom() : null;
-            Navigate(room != null ? new UriBuilder(room) { Query = room.Query.Substring(1) + "&resume=1" }.Uri
-                : new UriBuilder(homeAddress) { Query = serverAddress == null ? "startup=1" : "login=1" }.Uri);
+            string query = serverAddress != null ? "login=1" : ReadRoom() == null ? "startup=1" : "startup=1&resumeGroup=1";
+            Navigate(new UriBuilder(homeAddress) { Query = query }.Uri);
         }
         catch (WebView2RuntimeNotFoundException)
         {
@@ -312,6 +323,16 @@ internal sealed class GameWindow : Form
                     Uri room = ReadRoom();
                     if (!trusted && room != null && Origin(room) == Origin(source)) File.Delete(RoomFile);
                     break;
+                case "syncGroup":
+                    if (trusted || serverAddress != null) return;
+                    if (!Regex.IsMatch(message.Text ?? "", @"\A[0-9]{6}\z")) break;
+                    value = await SyncGroup(source, message.Text);
+                    break;
+                case "localLeaderboard":
+                    if (trusted || serverAddress != null) return;
+                    using (var client = NewLanClient())
+                        value = await PostLanApi(client, homeAddress, new { op = "leaderboard" }, await SessionCookie(homeAddress), large: true);
+                    break;
                 case "host":
                     if (!trusted || serverAddress != null) return;
                     using (var picker = new NetworkMenu())
@@ -327,7 +348,7 @@ internal sealed class GameWindow : Form
                     break;
                 case "join":
                     if (!trusted || serverAddress != null) return;
-                    if (!NetworkMenu.TryInvitation(message.Text ?? "", out destination))
+                    if (!NetworkMenu.TryInvitation(message.Text ?? "", out destination) || destination.Query.Length == 0)
                         throw new InvalidOperationException("请输入好友发来的组网房间号。");
                     if (groupAddress != null && destination.Host == groupAddress.ToString() && destination.Port == NetworkMenu.Port
                         && destination.Query.StartsWith("?room=", StringComparison.Ordinal))
@@ -335,7 +356,33 @@ internal sealed class GameWindow : Form
                         value = destination.Query.Substring(6);
                         destination = null;
                     }
-                    else await CheckNetworkServer(destination);
+                    else await ConnectGroup(destination, false);
+                    break;
+                case "resumeGroup":
+                    if (!trusted || serverAddress != null) return;
+                    destination = ReadRoom();
+                    if (destination == null) break;
+                    try
+                    {
+                        await ConnectGroup(destination, true);
+                        if (ReadRoom() != destination) destination = null;
+                        else destination = new UriBuilder(destination) { Query = destination.Query.Substring(1) + "&resume=1" }.Uri;
+                    }
+                    catch (LanSignInException failure)
+                    {
+                        destination = null;
+                        if (failure.Status == HttpStatusCode.NotFound || failure.Status == HttpStatusCode.Conflict) File.Delete(RoomFile);
+                        error = failure.Message;
+                    }
+                    catch (HttpRequestException) { destination = null; value = "retry"; }
+                    catch (TaskCanceledException) { destination = null; value = "retry"; }
+                    break;
+                case "forgetGroupResume":
+                    if (trusted && serverAddress == null) File.Delete(RoomFile);
+                    break;
+                case "goHome":
+                    if (trusted || serverAddress != null) return;
+                    destination = homeAddress;
                     break;
                 case "help":
                     if (trusted && serverAddress == null) NetworkMenu.ShowHelp(this);
@@ -344,10 +391,12 @@ internal sealed class GameWindow : Form
                     return;
             }
         }
+        catch (HttpRequestException) { error = "无法连接房主，请确认组网已连接且房主正在运行游戏。"; }
+        catch (TaskCanceledException) { error = "连接房主超时，请检查组网后重试。"; }
         catch (Exception failure) { error = failure.Message; }
 
         if (IsDisposed || Origin(currentAddress) != Origin(source)) return;
-        view.CoreWebView2.PostWebMessageAsJson(json.Serialize(new { id = message.Id, value, error }));
+        view.CoreWebView2.PostWebMessageAsJson(archiveJson.Serialize(new { id = message.Id, value, error }));
         if (destination != null && error == null) Navigate(destination);
     }
 
@@ -460,25 +509,109 @@ internal sealed class GameWindow : Form
         }
     }
 
-    private static async Task CheckNetworkServer(Uri destination)
+    private static HttpClient NewLanClient()
     {
-        using (var handler = new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
-        using (var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) })
+        var handler = new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false, UseCookies = false };
+        return new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6), MaxResponseContentBufferSize = 8 * 1024 * 1024 };
+    }
+
+    private async Task<string> SessionCookie(Uri origin)
+    {
+        var cookies = await view.CoreWebView2.CookieManager.GetCookiesAsync(origin.AbsoluteUri);
+        var cookie = cookies.FirstOrDefault(item => item.Name == "riichi_session");
+        return cookie == null ? null : cookie.Value;
+    }
+
+    private async Task<Dictionary<string, object>> PostLanApi(HttpClient client, Uri origin, object body, string cookie,
+        bool challenge = false, bool desktopSync = false, bool large = false)
+    {
+        var serializer = desktopSync || large ? archiveJson : json;
+        using (var request = new HttpRequestMessage(HttpMethod.Post, new Uri(origin, desktopSync ? "/desktop-sync" : "/api")))
         {
-            try
+            request.Content = new StringContent(serializer.Serialize(body), Encoding.UTF8, "application/json");
+            if (cookie != null) request.Headers.Add("Cookie", "riichi_session=" + cookie);
+            if (desktopSync) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", desktopControl);
+            using (var response = await client.SendAsync(request))
             {
-                using (var probe = await client.GetAsync(new Uri(destination, "/health")))
-                {
-                    IEnumerable<string> values;
-                    if (probe.StatusCode == HttpStatusCode.NoContent
-                        && probe.Headers.TryGetValues("X-WangWang-Server", out values)
-                        && values.Contains("riichi-table")) return;
-                }
+                if (challenge && response.StatusCode == HttpStatusCode.Unauthorized)
+                    throw new LanSignInException(response.StatusCode, "房主需要更新汪汪队后才能使用统一登录。");
+                Dictionary<string, object> result = null;
+                try { result = serializer.Deserialize<Dictionary<string, object>>(await response.Content.ReadAsStringAsync()); }
+                catch (ArgumentException) { }
+                catch (InvalidOperationException) { }
+                object error;
+                if (!response.IsSuccessStatusCode || result == null)
+                    throw new LanSignInException(response.StatusCode, result != null && result.TryGetValue("error", out error)
+                        ? Convert.ToString(error) : "牌桌返回了无效的登录响应。");
+                return result;
             }
-            catch (HttpRequestException) { }
-            catch (TaskCanceledException) { }
         }
-        throw new InvalidOperationException("无法连接牌桌。请确认房主已开桌、你们的组网可以互访，且房主的 TCP 8787 端口可访问。");
+    }
+
+    private async Task<object> SyncGroup(Uri origin, string code)
+    {
+        await groupSync.WaitAsync();
+        try
+        {
+            if (IsDisposed || Origin(currentAddress) != Origin(origin)) return null;
+            string local = await SessionCookie(homeAddress), remote = await SessionCookie(origin);
+            if (local == null || remote == null) return null;
+            using (var client = NewLanClient())
+            {
+                var current = await PostLanApi(client, origin, new { op = "lanSync", code }, remote);
+                var source = current["source"];
+                var info = await PostLanApi(client, homeAddress, new { op = "info", source }, local, desktopSync: true);
+                var after = info["after"];
+                Dictionary<string, object> latest = null;
+                bool caughtUp = false;
+                for (int i = 0; i < 8; i++)
+                {
+                    var next = await PostLanApi(client, origin, new { op = "lanArchive", after }, remote, large: true);
+                    var entry = next["entry"] as Dictionary<string, object>;
+                    if (entry == null) { caughtUp = true; break; }
+                    latest = await PostLanApi(client, homeAddress, new { op = "import", source, entry }, local, desktopSync: true);
+                    after = entry["seq"];
+                }
+                var updated = await PostLanApi(client, origin, new { op = "lanSync", code, stats = latest == null ? info["stats"] : latest["stats"] }, remote);
+                var saved = await PostLanApi(client, homeAddress, new { op = "peers", source, peers = updated["peers"] }, local, desktopSync: true);
+                return new { profile = saved["profile"], latest, caughtUp };
+            }
+        }
+        finally { groupSync.Release(); }
+    }
+
+    private async Task ConnectGroup(Uri destination, bool resume)
+    {
+        var manager = view.CoreWebView2.CookieManager;
+        var local = (await manager.GetCookiesAsync(homeAddress.AbsoluteUri)).FirstOrDefault(cookie => cookie.Name == "riichi_session");
+        if (local == null) throw new InvalidOperationException("请先在本机大厅登录。");
+        var legacy = (await manager.GetCookiesAsync(destination.AbsoluteUri)).FirstOrDefault(cookie => cookie.Name == "riichi_session");
+        string code = destination.Query.Substring(6);
+        using (var client = NewLanClient())
+        {
+            var request = await PostLanApi(client, destination, new { op = "lanChallenge", code, resume }, null, true);
+            object challenge;
+            if (!request.TryGetValue("challenge", out challenge) || !Regex.IsMatch(Convert.ToString(challenge), @"\A[0-9a-f]{64}\z"))
+                throw new InvalidOperationException("房主服务器的组网登录版本不兼容。");
+            var proof = await PostLanApi(client, homeAddress, new { op = "lanProof", code, challenge, audience = Origin(destination) }, local.Value);
+            var session = await PostLanApi(client, destination, new { op = "lanHandoff", proof }, legacy == null ? null : legacy.Value);
+            object token;
+            if (!session.TryGetValue("token", out token) || !Regex.IsMatch(Convert.ToString(token), @"\A[0-9a-f]{64}\z"))
+                throw new InvalidOperationException("房主服务器未返回有效的登录凭证。");
+            if (!(await manager.GetCookiesAsync(homeAddress.AbsoluteUri)).Any(c => c.Name == "riichi_session" && c.Value == local.Value))
+                throw new InvalidOperationException("本机账号已退出，请重新登录。");
+            var cookie = manager.CreateCookie("riichi_session", Convert.ToString(token), destination.Host, "/");
+            cookie.IsHttpOnly = true;
+            cookie.SameSite = CoreWebView2CookieSameSiteKind.Strict;
+            cookie.Expires = DateTime.UtcNow.AddDays(30);
+            manager.AddOrUpdateCookie(cookie);
+        }
+    }
+
+    private sealed class LanSignInException : Exception
+    {
+        internal HttpStatusCode Status { get; private set; }
+        internal LanSignInException(HttpStatusCode status, string message) : base(message) { Status = status; }
     }
 
     private async Task<Uri> StartServer()

@@ -8,11 +8,12 @@ const { LeagueGame, leagueRule:rule } = require('./league');
 const { drillRequest } = require('./drills');
 const { buildReplay } = require('./replay-data');
 const ComputerPlayer = require('@kobalab/majiang-ai');
-const { openAccounts, sessionLifetime, rankRules } = require('./accounts');
+const { openAccounts, sessionLifetime, rankRules, verifyLanProof } = require('./accounts');
 const { openRoomStore } = require('./room-store');
 const dataDir=process.env.RIICHI_DATA_DIR||path.join(__dirname,'data');
 const accounts=openAccounts(path.join(dataDir,'accounts.sqlite'));
 const rooms = new Map();
+const lanChallenges=new Map();
 const desktopLan=process.argv.includes('--desktop-lan');
 const desktopMode=desktopLan||process.argv.includes('--desktop');
 const roomStore=desktopMode?openRoomStore(path.join(dataDir,'rooms.sqlite')):null;
@@ -87,12 +88,50 @@ function sessionCookie(req, res, token, maxAge) {
  const secure = req.socket.encrypted || req.headers['x-forwarded-proto']==='https';
  res.setHeader('Set-Cookie','riichi_session='+token+'; Path=/; Max-Age='+maxAge+'; HttpOnly; SameSite=Strict'+(secure?'; Secure':''));
 }
+function apiError(res,status,error){
+ res.statusCode=status;
+ return res.end(JSON.stringify({error}));
+}
+
+function issueLanChallenge(res,code,resume){
+ const room=rooms.get(code);
+ if(!room?.address||room.address!==groupAddress)return apiError(res,404,'原房间已结束或房间号无效。');
+ const now=Date.now();
+ for(const [nonce,challenge] of lanChallenges){
+  if(challenge.expires>now)break;
+  lanChallenges.delete(nonce);
+ }
+ if(lanChallenges.size>=2048)return apiError(res,429,'入座请求过多，请稍后重试。');
+ const challenge=crypto.randomBytes(32).toString('hex');
+ lanChallenges.set(challenge,{room,resume:resume===true,expires:now+60000});
+ return res.end(JSON.stringify({challenge}));
+}
+
+function exchangeLanProof(res,proof,legacyId){
+ const issued=lanChallenges.get(proof?.challenge);
+ if(!issued||issued.expires<=Date.now()||issued.room.code!==proof.code||
+    proof.audience!=='http://'+issued.room.address+':8787'||!verifyLanProof(proof))
+  return apiError(res,403,'组网登录凭证无效，请重新加入。');
+ lanChallenges.delete(proof.challenge);
+ const {room,resume}=issued;
+ if(rooms.get(room.code)!==room||room.address!==groupAddress)return apiError(res,404,'原房间已结束。');
+ if(room.completed)applyRankResults(room);
+ try{
+  const {token}=accounts.acceptLanProof(proof,legacyId,id=>{
+   if(!room.seats.some(seat=>seat.accountId===id)){
+    if(resume)throw Error('原房间没有当前账号的座位。');
+    if(room.seats.length===4||(room.game&&!room.final))throw Error('房间已开局或已满。');
+   }
+  });
+  return res.end(JSON.stringify({token}));
+ }catch(error){return apiError(res,409,error.message);}
+}
 function applyRankResults(room) {
  if(room.ranks)return;
  const accountIds=room.seats.map(seat=>seat.accountId??null);
  const participants=accountIds.flatMap((id,index)=>id?[{id,points:room.final[index]}]:[]);
  const ranks=accounts.applyMatch(room.completed.id,participants,{
-  ...room.completed,accountIds,final:room.final,walls:room.game.walls
+  ...room.completed,accountIds,final:room.final,walls:room.game.walls,lan:Boolean(room.address),hosted:Boolean(room.address)
  });
  const seats=room.seats.filter(seat=>seat.accountId);
  if(room.address)roomStore.finish({...room,seats});
@@ -113,6 +152,44 @@ function sendSavedReplay(res,accountId,matchId){
 }
 
 const winds='东南西北';
+function lanProfiles(room){
+ return room?.address?room.seats.flatMap((seat,index)=>{
+  if(!seat.accountId)return [];
+  const profile=accounts.lanProfile(seat.accountId,index===0);
+  return profile?[profile]:[];
+ }):[];
+}
+
+function rememberRoomProfiles(room,snapshots){
+ for(const seat of room.seats)if(seat.accountId)accounts.rememberLanPeers(seat.accountId,snapshots);
+}
+
+async function readBody(req,limit){
+ const chunks=[];
+ let bytes=0;
+ for await(const chunk of req){
+  bytes+=chunk.length;
+  if(bytes>limit)throw Error('请求过长');
+  chunks.push(chunk);
+ }
+ return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
+
+async function desktopSync(req,res){
+ res.setHeader('Content-Type','application/json');
+ const id=accounts.accountId(requestToken(req));
+ if(!id)return apiError(res,401,'请先在本机登录');
+ const request=await readBody(req,8*1024*1024);
+ if(!/^[a-f0-9-]{36}$/.test(request.source??''))return apiError(res,400,'组网同步来源无效');
+ if(request.op==='info')return res.end(JSON.stringify({after:accounts.lanCursor(id,request.source),stats:accounts.lanProfile(id)}));
+ if(request.op==='import')return res.end(JSON.stringify(accounts.importLanMatch(id,request.source,request.entry)));
+ if(request.op==='peers'&&Array.isArray(request.peers)&&request.peers.length<=4){
+  accounts.rememberLanPeers(id,request.peers);
+  return res.end(JSON.stringify({profile:accounts.profile(id),stats:accounts.lanProfile(id)}));
+ }
+ return apiError(res,400,'组网同步请求无效');
+}
+
 function choices(g,l,type){
  const own=l===g.model.lunban, list=[];
  const add=(label,reply)=>list.push({label,reply});
@@ -229,7 +306,15 @@ function state(r,s){
  const rankResult=r.ranks?.[s.accountId],replayId=rankResult?r.completed.id:undefined;
  const final=rankResult&&s.returnedFrom!==replayId?r.final:undefined;
  const lan=localInvites?Object.values(networkInterfaces()).flat().find(a=>a?.family==='IPv4'&&!a.internal&&/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address))?.address:undefined;
- return {lan,code:r.code,groupCode:r.groupCode,practice:Boolean(r.practice),id,names:final?r.finalNames:r.seats.map(x=>x.name),started:!!g,matchId:r.matchId??undefined,final,rankResult,replayId,result:g?r.result:undefined,
+ const snapshots=lanProfiles(r);
+ if(snapshots.length)rememberRoomProfiles(r,snapshots);
+ const lanRoster=r.address?r.seats.filter(seat=>seat.accountId).map(seat=>{
+  const saved=accounts.lanProfile(seat.accountId,false);
+  const current=accounts.profile(seat.accountId);
+  return saved?{name:saved.nickname,rank:rankRules[saved.rank].name,points:saved.points}
+   :{name:seat.name,rank:current.rank,points:current.topPoints??current.recentPoints};
+ }):undefined;
+ return {lan,code:r.code,groupCode:r.groupCode,lanRoster,practice:Boolean(r.practice),id,names:final?r.finalNames:r.seats.map(x=>x.name),started:!!g,matchId:r.matchId??undefined,final,rankResult,replayId,result:g?r.result:undefined,
  table:m?.shan && {l,handNumber:g.walls.length,drawReveal:g._status==='drawReveal',effects:g.effects,round:winds[Math.min(1,m.zhuangfeng)]+(m.zhuangfeng>1?4:m.jushu+1)+'局',honba:m.changbang,sticks:m.lizhibang,left:m.shan.paishu,dora:m.shan.baopai,rinshan:m.shan.rinshanRemaining,turn:m.lunban,hand:m.shoupai[l].toString().split(',')[0],players:m.player_id.map((i,j)=>({name:r.seats[i].name,count:(m.shoupai[j].toString().split(',')[0].match(/[0-9]/g)||[]).length,score:m.defen[i],river:m.he[j]._pai,melds:m.shoupai[j]._fulou}))},
  nonce:g?s.pending?.nonce:undefined,options:g?s.pending?.options.map(o=>o.label)||[]:[]};
 }
@@ -237,6 +322,7 @@ const page=fs.readFileSync(path.join(__dirname,'index.html')); const tilesScript
 async function handleRequest(req,res){
  try{
  const desktopHome=Boolean(desktopControl)&&req.socket.localAddress==='127.0.0.1';
+ const groupGuest=Boolean(groupAddress)&&req.socket.localAddress===groupAddress;
  if(req.method==='GET'&&req.url==='/health'){
   res.writeHead(204,{'X-WangWang-Server':'riichi-table','Cache-Control':'no-store'});
   return res.end();
@@ -258,9 +344,12 @@ async function handleRequest(req,res){
  }
  if(req.method==='GET'&&req.url==='/tiles.js'){res.setHeader('Content-Type','text/javascript;charset=utf-8');return res.end(tilesScript)}
  if(req.method==='GET'&&req.url.split('?')[0]==='/'){res.setHeader('Content-Type','text/html;charset=utf-8');return res.end(page)}
+ if(req.method==='POST'&&req.url==='/desktop-sync'){
+  if(!desktopHome||req.headers.authorization!=='Bearer '+desktopControl){res.writeHead(404);return res.end();}
+  return await desktopSync(req,res);
+ }
  if(req.method!=='POST'||req.url!=='/api'){res.writeHead(404);return res.end()}
- let body='';for await(const part of req){body+=part;if(body.length>4000)throw Error('请求过长')}
- const b=JSON.parse(body);
+ const b=await readBody(req,4000);
  if(b.op==='desktopNetwork'){
   if(!desktopHome||req.headers.authorization!=='Bearer '+desktopControl){
    res.writeHead(404);return res.end();
@@ -272,7 +361,10 @@ async function handleRequest(req,res){
  const loginToken=requestToken(req);
  res.setHeader('Content-Type','application/json');
  res.setHeader('Cache-Control','no-store');
+ if(b.op==='lanChallenge'&&groupGuest)return issueLanChallenge(res,b.code,b.resume);
+ if(b.op==='lanHandoff'&&groupGuest)return exchangeLanProof(res,b.proof,accounts.accountId(loginToken));
  if(['register','login'].includes(b.op)){
+  if(groupGuest)return apiError(res,403,'请在电脑上的汪汪队大厅登录，输入组网房间号后即可入座。');
   const login=await accounts.authenticate(b.op,b);
   sessionCookie(req,res,login.token,sessionLifetime);
   return res.end(JSON.stringify({profile:login.profile,rankRules}));
@@ -284,10 +376,28 @@ async function handleRequest(req,res){
  }
  const accountId=accounts.accountId(loginToken);
  if(b.op==='me')return res.end(JSON.stringify(accountId?{profile:accounts.profile(accountId),rankRules,
-  hasLanRoom:desktopHome&&Boolean(activeLanRoom(accountId))}:{profile:null}));
+  hasLanRoom:desktopHome&&Boolean(activeLanRoom(accountId))}:{profile:null,groupSignIn:groupGuest}));
  if(!accountId){res.statusCode=401;return res.end(JSON.stringify({error:'请先登录'}));}
+ if(b.op==='lanProof'){
+  if(!desktopHome)return apiError(res,403,'请先在本机登录。');
+  if(typeof b.code!=='string'||!/^[0-9]{6}$/.test(b.code)||typeof b.challenge!=='string'||!/^[a-f0-9]{64}$/.test(b.challenge)||
+    typeof b.audience!=='string'||!/^http:\/\/\d{1,3}(?:\.\d{1,3}){3}:8787$/.test(b.audience))
+   return apiError(res,400,'组网登录请求无效。');
+  return res.end(JSON.stringify(accounts.signLanProof(accountId,b.code,b.challenge,b.audience)));
+ }
+ if(b.op==='lanSync'&&groupGuest){
+  if(b.stats)accounts.publishLanProfile(accountId,b.stats);
+  const room=rooms.get(b.code);
+  const peers=room?.seats.some(seat=>seat.accountId===accountId)?lanProfiles(room):[];
+  if(peers.length)rememberRoomProfiles(room,peers);
+  return res.end(JSON.stringify({source:accounts.lanSource,peers}));
+ }
+ if(b.op==='lanArchive'&&groupGuest){
+  if(!Number.isSafeInteger(b.after)||b.after<0)return apiError(res,400,'牌谱同步位置无效');
+  return res.end(JSON.stringify({entry:accounts.lanFeed(accountId,b.after)}));
+ }
 
- if(['drillProgress','drillQuestion','drillAnswer'].includes(b.op))return res.end(JSON.stringify(drillRequest(accounts,accountId,b)));
+ if(['drillProgress','drillQuestion','drillAnswer','drillFavorites','drillFavorite'].includes(b.op))return res.end(JSON.stringify(drillRequest(accounts,accountId,b)));
 
  if(b.op==='leaderboard')return res.end(JSON.stringify({players:accounts.leaderboard(accountId)}));
  if(b.op==='history')return res.end(JSON.stringify({matches:accounts.matches(accountId)}));

@@ -3,6 +3,21 @@ const { leagueRule } = require('./league');
 
 const modes=['flush','efficiency','score','discard'];
 const levelSize=5;
+const levelCount=40;
+const firstLevel=[1,2,3,3,5];
+const tenthLevel=[3,3,4,5,6];
+const lastLevel=[7,8,8,9,10];
+const drillOrder=Array.from({length:levelCount*levelSize},(_,index)=>{
+ const level=Math.floor(index/levelSize),slot=index%levelSize;
+ const [start,end,fraction]=level<=9
+  ?[firstLevel[slot],tenthLevel[slot],level/9]
+  :[tenthLevel[slot],lastLevel[slot],(level-9)/(levelCount-10)];
+ return {index,weight:start+(end-start)*fraction};
+}).sort((a,b)=>a.weight-b.weight).reduce((order,{index,weight},bankIndex)=>{
+ order[index]={bankIndex,difficulty:Math.floor(weight)};
+ return order;
+},[]);
+const indexByBank=new Map(drillOrder.map(({bankIndex},index)=>[bankIndex,index]));
 const tileTypes=Array.from('mpsz',suit=>Array.from({length:suit==='z'?7:9},(_,i)=>suit+(i+1))).flat();
 const normal=tile=>tile.replace('0','5');
 
@@ -76,14 +91,28 @@ function grade(mode,solution,answer){
  return parsed.length===tiles.length&&parsed.every(tile=>tiles.includes(tile));
 }
 
-function drillRequest(accounts,accountId,{op,mode,index,answer}){
+function drillRequest(accounts,accountId,{op,mode,index,answer,favorite}){
  const bank=require('./drill-bank.json');
  const progress=accounts.drillProgress(accountId);
  if(op==='drillProgress')return {progress,levelSize,total:bank.flush.length};
+ if(op==='drillFavorites'){
+  const favorites=accounts.drillFavorites(accountId).flatMap(({mode,bank_index})=>{
+   const index=indexByBank.get(bank_index);
+   if(!modes.includes(mode)||index==null||index>(progress[mode]??0))return [];
+   return [{mode,index,difficulty:drillOrder[index].difficulty}];
+  });
+  return {favorites};
+ }
  if(!modes.includes(mode)||!Number.isInteger(index)||index<0||index>=bank[mode].length||index>(progress[mode]??0))
   throw Error('这道题尚未解锁。');
- const question=bank[mode][index];
- if(op==='drillQuestion')return {question};
+ const {bankIndex,difficulty}=drillOrder[index];
+ const question=bank[mode][bankIndex];
+ if(op==='drillQuestion')return {question,difficulty,favorite:accounts.isDrillFavorite(accountId,mode,bankIndex)};
+ if(op==='drillFavorite'){
+  if(typeof favorite!=='boolean')throw Error('收藏状态无效。');
+  accounts.setDrillFavorite(accountId,mode,bankIndex,favorite);
+  return {favorite};
+ }
  const solution=analyze(mode,question);
  const correct=grade(mode,solution,answer);
  if(correct&&index>=(progress[mode]??0))accounts.solveDrill(accountId,mode,index+1);

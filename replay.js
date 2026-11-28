@@ -114,6 +114,7 @@ function openMatchReplay(match){
    <label>局 <select id="replay-round"></select></label>
    <label>巡 <select id="replay-turn" title="以自家摸牌或鸣牌为一巡"></select></label>
    <label><input type="checkbox" id="replay-reveal"> 显示其他家手牌</label>
+   <span id="replay-table-size"></span>
   </div>
   <nav class="replay-navigation" aria-label="回放进度">
    <button type="button" id="turn-back" aria-label="退一巡" title="退一巡">⇐</button>
@@ -125,6 +126,7 @@ function openMatchReplay(match){
   <div id="replay-table"></div>
   <details class="replay-wall" id="replay-wall"><summary>查看原始牌山（136 张）</summary><div id="replay-wall-content"></div></details>
  `;
+ mountTableSize(el('replay-table-size'));
  const roundSelect=el('replay-round'),turnSelect=el('replay-turn'),reveal=el('replay-reveal');
  const wall=el('replay-wall'),wallContent=el('replay-wall-content');
  roundSelect.innerHTML=match.rounds.map((round,index)=>{

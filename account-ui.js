@@ -36,14 +36,18 @@ function rankSummary(current,result){
  const changed=result && result.previousRank!==current.rank;
  const heading=changed?result.previousRank+' → '+current.rank:current.rank;
  const progress=changed?'<span>触发升降的 10 场合计 '+signedPoints(result.windowPoints)+'</span>':'';
- const top=current.topPoints==null?'':'<span>最狗位累计 '+signedPoints(current.topPoints)+'</span>';
- return '<div class="rank-summary"><strong>'+heading+'</strong>'+progress
-  +'<span>最近 '+current.recentCount+' / 10 个半庄 · '+signedPoints(current.recentPoints)+'</span>'+top+'</div>';
+ const points=current.topPoints==null?'最近 '+current.recentCount+' / 10 个半庄 · '+signedPoints(current.recentPoints)
+  :'最狗位累计 '+signedPoints(current.topPoints);
+ return '<div class="rank-summary"><strong>'+heading+'</strong>'+progress+'<span>'+points+'</span></div>';
 }
 
 function showAccountGate(){
  profile=null;
  resetTable();
+ if(desktop?.group){
+  desktopRequest('goHome').catch(error=>{el('error').textContent=error.message});
+  return;
+ }
  el('replay').hidden=true;
  el('replay').replaceChildren();
  el('leaderboard').hidden=true;
@@ -57,35 +61,69 @@ function showAccountGate(){
  if(desktop?.remember)readSavedLogin();
 }
 
+let groupRecoveryTimer;
+function finishGroupRecovery(){
+ resumeGroupAtStartup=false;
+ clearTimeout(groupRecoveryTimer);
+ el('group-recovery').hidden=true;
+}
+
+async function cancelGroupRecovery(){
+ if(!resumeGroupAtStartup)return;
+ finishGroupRecovery();
+ await desktopRequest('forgetGroupResume');
+}
+
+async function recoverGroupRoom(){
+ if(!resumeGroupAtStartup||!profile||st)return;
+ el('group-recovery').hidden=false;
+ try{
+  const result=await desktopRequest('resumeGroup');
+  if(!resumeGroupAtStartup)return;
+  if(result==='retry')groupRecoveryTimer=setTimeout(recoverGroupRoom,3000);
+  else finishGroupRecovery();
+ }catch(error){
+  if(!resumeGroupAtStartup)return;
+  finishGroupRecovery();
+  el('error').textContent=error.message;
+ }
+}
+
+el('cancel-group-recovery').onclick=()=>cancelGroupRecovery().catch(error=>{el('error').textContent=error.message});
+
 function rankRulesMarkup(rules){
  if(!rules?.length)return '';
  const rows=rules.map(({name,promoteAt,demoteBelow})=>'<tr><th scope="row">'+esc(name)+'</th><td>'
   +(promoteAt??'—')+'</td><td>'+(demoteBelow??'—')+'</td></tr>').join('');
- return '<details class="rank-rules"><summary>段位规则</summary>'
+ return '<details class="rank-rules"><summary>段位规则</summary><div class="rank-rules-content">'
   +'<p>本段打满 10 个完整半庄后，最近 10 场合计达到晋级线则晋级，低于降级线则降级。升降后从第 1 场重新累计。</p>'
   +'<table><thead><tr><th scope="col">段位</th><th scope="col">晋级线（pt）</th><th scope="col">降级线（pt）</th></tr></thead><tbody>'
-  +rows+'</tbody></table></details>';
+  +rows+'</tbody></table></div></details>';
 }
 
 function acceptProfile(current,rankRules){
  profile=current;
  el('account-gate').hidden=true;
  el('lobby').hidden=false;
- el('account-profile').innerHTML='<div class="account-identity"><b>'+esc(current.nickname)+'</b><button type="button" id="logout" class="secondary">退出登录</button></div>'
+ el('account-profile').innerHTML='<div class="account-identity"><b>'+esc(current.nickname)+'</b><button type="button" id="logout" class="secondary">'+(desktop?.group?'返回本机大厅':'退出登录')+'</button></div>'
   +rankSummary(current)+rankRulesMarkup(rankRules);
  el('logout').onclick=async()=>{
-  try{await requestAccountData('logout');showAccountGate();}
+  try{await cancelGroupRecovery();await requestAccountData('logout');showAccountGate();}
   catch(error){el('error').textContent=error.message;}
  };
  if(auth.token)call('state');
  else if(invited)call(parameters.has('resume')?'resume':'join',{code:invited});
- else if(desktop?.network)call('resume');
+ else if(desktop?.network){
+  if(resumeGroupAtStartup)recoverGroupRoom();
+  else call('resume');
+ }
 }
 
 async function restoreAccount(){
  try{
-  const {profile:current,rankRules,hasLanRoom}=await requestAccountData('me');
-  if(current&&(!desktopStartup||hasLanRoom))acceptProfile(current,rankRules);
+  const {profile:current,rankRules,hasLanRoom,groupSignIn}=await requestAccountData('me');
+  if(current&&(!desktopStartup||hasLanRoom||resumeGroupAtStartup))acceptProfile(current,rankRules);
+  else if(groupSignIn&&!desktop?.group)el('error').textContent='请在汪汪队桌面程序登录，输入组网房间号后即可入座。';
   else showAccountGate();
  }catch(error){
   showAccountGate();
@@ -138,13 +176,13 @@ async function showLeaderboard(){
  el('leaderboard').hidden=false;
  el('leaderboard-back').focus();
  try{
-  const {players}=await requestAccountData('leaderboard');
+  const {players}=await (desktop?.group?desktopRequest('localLeaderboard'):requestAccountData('leaderboard'));
   if(!loading.isConnected)return;
   const rows=players.map(({nickname,rank,points,isSelf},index)=>
    '<tr'+(isSelf?' class="leaderboard-self"':'')+'><td>'+(index+1)+'</td><th scope="row">'+esc(nickname)
    +(isSelf?' <small>（你）</small>':'')+'</th><td>'+esc(rank)+'</td><td>'+signedPoints(points)+'</td></tr>'
   ).join('');
-  content.innerHTML='<table class="leaderboard-table"><caption>同段位按积分排序。最狗位显示累计积分，其余段位显示本段最近 10 个半庄的积分。</caption>'
+  content.innerHTML='<table class="leaderboard-table"><caption>同段位按积分排序。最狗位显示累计积分，其余段位显示本段最近 10 个半庄的积分。组网成员的数据在同桌时刷新。</caption>'
    +'<thead><tr><th scope="col">排名</th><th scope="col">昵称</th><th scope="col">段位</th><th scope="col">积分</th></tr></thead><tbody>'+rows+'</tbody></table>';
  }catch{
   if(loading.isConnected)loading.textContent='未能读取排行榜，请返回大厅后重试。';
